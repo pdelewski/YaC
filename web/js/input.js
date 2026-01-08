@@ -158,9 +158,98 @@ class InputHandler {
         gameState.setMode('normal');
     }
 
+    // Try to move or attack in a direction (like original Civ)
+    tryMoveOrAttack(dx, dy) {
+        if (!gameState.selectedUnit || !gameState.isMyTurn()) return false;
+        if (!gameState.canUnitMove(gameState.selectedUnit)) return false;
+
+        const unit = gameState.selectedUnit;
+        const newX = unit.x + dx;
+        const newY = unit.y + dy;
+
+        // Check bounds
+        if (!gameState.map || newX < 0 || newX >= gameState.map.width ||
+            newY < 0 || newY >= gameState.map.height) {
+            return false;
+        }
+
+        // Check for enemies - attack if present
+        const enemies = gameState.getEnemyUnitsAt(newX, newY);
+        const enemyCity = gameState.getCityAt(newX, newY);
+        const hasEnemy = enemies.length > 0 || (enemyCity && enemyCity.owner_id !== gameState.myPlayerId);
+
+        if (hasEnemy) {
+            gameSocket.attackUnit(unit.id, newX, newY);
+            return true;
+        }
+
+        // Check terrain for movement
+        const tile = gameState.getTile(newX, newY);
+        if (!tile || tile.terrain === 'Ocean' || tile.terrain === 'Mountains') {
+            return false;
+        }
+
+        // Move the unit
+        gameSocket.moveUnit(unit.id, newX, newY);
+        return true;
+    }
+
     onKeyDown(e) {
         // Don't handle if typing in input
         if (e.target.tagName === 'INPUT') return;
+
+        // Direction keys for unit movement (like original Civ)
+        // Numpad: 7=NW, 8=N, 9=NE, 4=W, 6=E, 1=SW, 2=S, 3=SE
+        // Arrow keys: move in 4 directions
+        const directionKeys = {
+            // Numpad
+            'Numpad7': { dx: -1, dy: -1 },
+            'Numpad8': { dx: 0, dy: -1 },
+            'Numpad9': { dx: 1, dy: -1 },
+            'Numpad4': { dx: -1, dy: 0 },
+            'Numpad6': { dx: 1, dy: 0 },
+            'Numpad1': { dx: -1, dy: 1 },
+            'Numpad2': { dx: 0, dy: 1 },
+            'Numpad3': { dx: 1, dy: 1 },
+            // Arrow keys (when unit selected)
+            'ArrowUp': { dx: 0, dy: -1 },
+            'ArrowDown': { dx: 0, dy: 1 },
+            'ArrowLeft': { dx: -1, dy: 0 },
+            'ArrowRight': { dx: 1, dy: 0 },
+        };
+
+        // Shift+Arrow always pans camera
+        if (e.shiftKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            e.preventDefault();
+            const panAmount = Config.CAMERA.PAN_SPEED * 5;
+            switch (e.code) {
+                case 'ArrowUp': renderer.pan(0, -panAmount); break;
+                case 'ArrowDown': renderer.pan(0, panAmount); break;
+                case 'ArrowLeft': renderer.pan(-panAmount, 0); break;
+                case 'ArrowRight': renderer.pan(panAmount, 0); break;
+            }
+            return;
+        }
+
+        // Arrow keys without shift: move unit if selected, otherwise pan camera
+        if (directionKeys[e.code]) {
+            e.preventDefault();
+            const dir = directionKeys[e.code];
+
+            // If unit selected and it's my turn, try to move/attack
+            if (gameState.selectedUnit && gameState.isMyTurn() && gameState.canUnitMove(gameState.selectedUnit)) {
+                if (this.tryMoveOrAttack(dir.dx, dir.dy)) {
+                    return;
+                }
+            }
+
+            // Otherwise pan camera (for arrow keys only, not numpad)
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                const panAmount = Config.CAMERA.PAN_SPEED * 5;
+                renderer.pan(dir.dx * panAmount, dir.dy * panAmount);
+            }
+            return;
+        }
 
         switch (e.key) {
             case 'Escape':
@@ -168,22 +257,6 @@ class InputHandler {
                 gameState.setMode('normal');
                 ui.hideCityModal();
                 ui.updateSelectionPanel();
-                break;
-
-            case 'm':
-            case 'M':
-                if (gameState.selectedUnit && gameState.canUnitMove(gameState.selectedUnit)) {
-                    gameState.setMode('move');
-                    ui.updateModeButtons();
-                }
-                break;
-
-            case 'a':
-            case 'A':
-                if (gameState.selectedUnit && gameState.canUnitMove(gameState.selectedUnit)) {
-                    gameState.setMode('attack');
-                    ui.updateModeButtons();
-                }
                 break;
 
             case 'f':
@@ -205,6 +278,7 @@ class InputHandler {
 
             case 's':
             case 'S':
+            case ' ': // Space bar to skip
                 if (gameState.selectedUnit) {
                     gameSocket.skipUnit(gameState.selectedUnit.id);
                 }
@@ -216,17 +290,23 @@ class InputHandler {
                 }
                 break;
 
-            // Camera movement with arrow keys
-            case 'ArrowUp':
+            // Camera panning with WASD (always works)
+            case 'w':
+            case 'W':
                 renderer.pan(0, -Config.CAMERA.PAN_SPEED * 5);
                 break;
-            case 'ArrowDown':
-                renderer.pan(0, Config.CAMERA.PAN_SPEED * 5);
-                break;
-            case 'ArrowLeft':
+            case 'a':
+            case 'A':
                 renderer.pan(-Config.CAMERA.PAN_SPEED * 5, 0);
                 break;
-            case 'ArrowRight':
+            case 's':
+                // 's' already handled above for skip, but if no unit selected, pan
+                if (!gameState.selectedUnit) {
+                    renderer.pan(0, Config.CAMERA.PAN_SPEED * 5);
+                }
+                break;
+            case 'd':
+            case 'D':
                 renderer.pan(Config.CAMERA.PAN_SPEED * 5, 0);
                 break;
 
@@ -246,13 +326,41 @@ class InputHandler {
                 const myPlayer = gameState.getMyPlayer();
                 if (myPlayer && myPlayer.units && myPlayer.units.length > 0) {
                     const unit = myPlayer.units[0];
-                    console.log('Centering on first unit at', unit.x, unit.y);
                     renderer.centerOn(unit.x, unit.y);
-                } else {
-                    console.log('No units to center on. Players:', gameState.players);
                 }
                 break;
+
+            // Next unit with movement left
+            case 'n':
+            case 'N':
+            case 'Tab':
+                e.preventDefault();
+                this.selectNextUnit();
+                break;
         }
+    }
+
+    // Select next unit with movement remaining
+    selectNextUnit() {
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.units || myPlayer.units.length === 0) return;
+
+        const unitsWithMovement = myPlayer.units.filter(u => u.movement_left > 0 && !u.is_fortified);
+        if (unitsWithMovement.length === 0) return;
+
+        // Find current unit index
+        let currentIndex = -1;
+        if (gameState.selectedUnit) {
+            currentIndex = unitsWithMovement.findIndex(u => u.id === gameState.selectedUnit.id);
+        }
+
+        // Select next unit (wrap around)
+        const nextIndex = (currentIndex + 1) % unitsWithMovement.length;
+        const nextUnit = unitsWithMovement[nextIndex];
+
+        gameState.selectUnit(nextUnit);
+        renderer.centerOn(nextUnit.x, nextUnit.y);
+        ui.updateSelectionPanel();
     }
 }
 
