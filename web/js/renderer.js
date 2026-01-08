@@ -292,95 +292,70 @@ class Renderer {
             }
             for (const unit of player.units) {
                 const screen = this.worldToScreen(unit.x, unit.y);
-                const cx = screen.x + scaledTileSize / 2;
-                const cy = screen.y + scaledTileSize / 2;
 
-                // Shield shape for unit
-                this.ctx.beginPath();
-                this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.1);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.25);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.55);
-                this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.9);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.55);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.25);
-                this.ctx.closePath();
-
-                // Fill with player color
+                // Draw unit background (player color border)
                 this.ctx.fillStyle = player.color;
-                this.ctx.fill();
+                this.ctx.fillRect(
+                    screen.x + scaledTileSize * 0.05,
+                    screen.y + scaledTileSize * 0.05,
+                    scaledTileSize * 0.9,
+                    scaledTileSize * 0.9
+                );
 
-                // Shield border
-                this.ctx.strokeStyle = '#fff';
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
+                // Draw unit sprite background
+                this.ctx.fillStyle = '#1a1a2a';
+                this.ctx.fillRect(
+                    screen.x + scaledTileSize * 0.1,
+                    screen.y + scaledTileSize * 0.1,
+                    scaledTileSize * 0.8,
+                    scaledTileSize * 0.8
+                );
 
-                // Inner shield detail line
-                this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                this.ctx.lineWidth = 1;
-                this.ctx.beginPath();
-                this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.18);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.78, screen.y + scaledTileSize * 0.28);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.78, screen.y + scaledTileSize * 0.52);
-                this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.82);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.22, screen.y + scaledTileSize * 0.52);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.22, screen.y + scaledTileSize * 0.28);
-                this.ctx.closePath();
-                this.ctx.stroke();
+                // Draw the unit sprite
+                this.drawUnitSprite(
+                    unit.type,
+                    screen.x + scaledTileSize * 0.1,
+                    screen.y + scaledTileSize * 0.1,
+                    scaledTileSize * 0.8,
+                    player.color
+                );
 
-                // Unit type letter with shadow
-                const letter = this.getUnitLetter(unit.type);
-                this.ctx.font = `bold ${Math.max(12, scaledTileSize * 0.45)}px sans-serif`;
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-
-                // Shadow
-                this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                this.ctx.fillText(letter, cx + 1, cy + 1);
-
-                // Letter
-                this.ctx.fillStyle = '#fff';
-                this.ctx.fillText(letter, cx, cy);
-
-                // Veteran star (gold)
+                // Veteran star (gold) in corner
                 if (unit.is_veteran) {
                     this.ctx.fillStyle = '#ffd700';
-                    this.ctx.font = `bold ${scaledTileSize * 0.35}px sans-serif`;
-                    this.ctx.fillText('\u2605', screen.x + scaledTileSize * 0.78, screen.y + scaledTileSize * 0.22);
+                    this.ctx.font = `bold ${Math.max(10, scaledTileSize * 0.3)}px sans-serif`;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText('\u2605', screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.15);
                 }
 
-                // Fortified indicator (double border)
+                // Fortified indicator (blue glow border)
                 if (unit.is_fortified) {
                     this.ctx.strokeStyle = '#4a9eff';
                     this.ctx.lineWidth = 3;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.05);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.9, screen.y + scaledTileSize * 0.22);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.9, screen.y + scaledTileSize * 0.58);
-                    this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.95);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.1, screen.y + scaledTileSize * 0.58);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.1, screen.y + scaledTileSize * 0.22);
-                    this.ctx.closePath();
-                    this.ctx.stroke();
+                    this.ctx.strokeRect(
+                        screen.x + scaledTileSize * 0.02,
+                        screen.y + scaledTileSize * 0.02,
+                        scaledTileSize * 0.96,
+                        scaledTileSize * 0.96
+                    );
                 }
 
                 // Movement indicator (dim overlay if no movement left)
                 if (unit.movement_left === 0) {
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.1);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.25);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.55);
-                    this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.9);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.55);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.25);
-                    this.ctx.closePath();
-                    this.ctx.fill();
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    this.ctx.fillRect(
+                        screen.x + scaledTileSize * 0.05,
+                        screen.y + scaledTileSize * 0.05,
+                        scaledTileSize * 0.9,
+                        scaledTileSize * 0.9
+                    );
                 }
             }
         }
     }
 
-    // Get unit letter for display
+    // Get unit letter for display (fallback)
     getUnitLetter(unitType) {
         const letters = {
             'Settler': 'S',
@@ -391,6 +366,409 @@ class Renderer {
             'Catapult': 'C'
         };
         return letters[unitType] || '?';
+    }
+
+    // Draw detailed unit sprite
+    drawUnitSprite(unitType, x, y, size, playerColor) {
+        const ctx = this.ctx;
+        const s = size; // shorthand for size
+
+        // Common colors
+        const skin = '#deb887';
+        const dark = '#2a2a2a';
+        const metal = '#708090';
+        const wood = '#8b4513';
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        switch(unitType) {
+            case 'Settler':
+                this.drawSettler(ctx, s, skin, dark, wood, playerColor);
+                break;
+            case 'Warrior':
+                this.drawWarrior(ctx, s, skin, dark, wood, playerColor);
+                break;
+            case 'Phalanx':
+                this.drawPhalanx(ctx, s, skin, dark, metal, playerColor);
+                break;
+            case 'Archer':
+                this.drawArcher(ctx, s, skin, dark, wood, playerColor);
+                break;
+            case 'Horseman':
+                this.drawHorseman(ctx, s, skin, dark, playerColor);
+                break;
+            case 'Catapult':
+                this.drawCatapult(ctx, s, dark, wood);
+                break;
+            default:
+                // Fallback to letter
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${s * 0.5}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.getUnitLetter(unitType), s/2, s/2);
+        }
+
+        ctx.restore();
+    }
+
+    // Settler: Person with cart
+    drawSettler(ctx, s, skin, dark, wood, color) {
+        // Cart wheels
+        ctx.fillStyle = wood;
+        ctx.beginPath();
+        ctx.arc(s * 0.7, s * 0.75, s * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(s * 0.4, s * 0.75, s * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cart body
+        ctx.fillStyle = wood;
+        ctx.fillRect(s * 0.3, s * 0.5, s * 0.5, s * 0.2);
+
+        // Supplies on cart
+        ctx.fillStyle = '#c4a35a';
+        ctx.fillRect(s * 0.35, s * 0.38, s * 0.15, s * 0.14);
+        ctx.fillStyle = '#8fbc8f';
+        ctx.fillRect(s * 0.52, s * 0.4, s * 0.18, s * 0.12);
+
+        // Person body
+        ctx.fillStyle = color;
+        ctx.fillRect(s * 0.12, s * 0.4, s * 0.18, s * 0.25);
+
+        // Person head
+        ctx.fillStyle = skin;
+        ctx.beginPath();
+        ctx.arc(s * 0.21, s * 0.32, s * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hat
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(s * 0.11, s * 0.22, s * 0.2, s * 0.06);
+
+        // Legs
+        ctx.fillStyle = dark;
+        ctx.fillRect(s * 0.14, s * 0.65, s * 0.06, s * 0.15);
+        ctx.fillRect(s * 0.22, s * 0.65, s * 0.06, s * 0.15);
+    }
+
+    // Warrior: Figure with club
+    drawWarrior(ctx, s, skin, dark, wood, color) {
+        // Body
+        ctx.fillStyle = color;
+        ctx.fillRect(s * 0.35, s * 0.35, s * 0.3, s * 0.3);
+
+        // Head
+        ctx.fillStyle = skin;
+        ctx.beginPath();
+        ctx.arc(s * 0.5, s * 0.25, s * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hair/headband
+        ctx.fillStyle = dark;
+        ctx.fillRect(s * 0.38, s * 0.15, s * 0.24, s * 0.06);
+
+        // Club
+        ctx.fillStyle = wood;
+        ctx.save();
+        ctx.translate(s * 0.72, s * 0.25);
+        ctx.rotate(Math.PI / 6);
+        ctx.fillRect(-s * 0.04, 0, s * 0.08, s * 0.35);
+        // Club head
+        ctx.fillStyle = '#5a4a3a';
+        ctx.beginPath();
+        ctx.arc(0, s * 0.35, s * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Shield arm
+        ctx.fillStyle = skin;
+        ctx.fillRect(s * 0.22, s * 0.38, s * 0.15, s * 0.08);
+
+        // Small shield
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(s * 0.2, s * 0.45, s * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Legs
+        ctx.fillStyle = skin;
+        ctx.fillRect(s * 0.38, s * 0.65, s * 0.08, s * 0.18);
+        ctx.fillRect(s * 0.54, s * 0.65, s * 0.08, s * 0.18);
+    }
+
+    // Phalanx: Soldier with spear and large shield
+    drawPhalanx(ctx, s, skin, dark, metal, color) {
+        // Large shield
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(s * 0.15, s * 0.25);
+        ctx.lineTo(s * 0.45, s * 0.2);
+        ctx.lineTo(s * 0.45, s * 0.75);
+        ctx.lineTo(s * 0.15, s * 0.7);
+        ctx.closePath();
+        ctx.fill();
+
+        // Shield decoration
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(s * 0.3, s * 0.3);
+        ctx.lineTo(s * 0.3, s * 0.65);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(s * 0.3, s * 0.47, s * 0.1, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Helmet
+        ctx.fillStyle = metal;
+        ctx.beginPath();
+        ctx.arc(s * 0.6, s * 0.25, s * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        // Helmet crest
+        ctx.fillStyle = '#8b0000';
+        ctx.fillRect(s * 0.57, s * 0.1, s * 0.06, s * 0.12);
+
+        // Face
+        ctx.fillStyle = skin;
+        ctx.fillRect(s * 0.54, s * 0.25, s * 0.12, s * 0.1);
+
+        // Body armor
+        ctx.fillStyle = metal;
+        ctx.fillRect(s * 0.5, s * 0.35, s * 0.2, s * 0.25);
+
+        // Spear
+        ctx.fillStyle = '#8b4513';
+        ctx.fillRect(s * 0.75, s * 0.1, s * 0.04, s * 0.7);
+        // Spear tip
+        ctx.fillStyle = metal;
+        ctx.beginPath();
+        ctx.moveTo(s * 0.77, s * 0.1);
+        ctx.lineTo(s * 0.72, s * 0.2);
+        ctx.lineTo(s * 0.82, s * 0.2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Legs
+        ctx.fillStyle = metal;
+        ctx.fillRect(s * 0.52, s * 0.6, s * 0.07, s * 0.2);
+        ctx.fillRect(s * 0.61, s * 0.6, s * 0.07, s * 0.2);
+    }
+
+    // Archer: Figure with bow
+    drawArcher(ctx, s, skin, dark, wood, color) {
+        // Body
+        ctx.fillStyle = color;
+        ctx.fillRect(s * 0.4, s * 0.35, s * 0.2, s * 0.28);
+
+        // Head
+        ctx.fillStyle = skin;
+        ctx.beginPath();
+        ctx.arc(s * 0.5, s * 0.25, s * 0.11, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hood/cap
+        ctx.fillStyle = '#228b22';
+        ctx.beginPath();
+        ctx.arc(s * 0.5, s * 0.22, s * 0.12, Math.PI, 0);
+        ctx.fill();
+
+        // Bow
+        ctx.strokeStyle = wood;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(s * 0.25, s * 0.45, s * 0.25, -Math.PI * 0.4, Math.PI * 0.4);
+        ctx.stroke();
+
+        // Bowstring
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(s * 0.35, s * 0.22);
+        ctx.lineTo(s * 0.35, s * 0.68);
+        ctx.stroke();
+
+        // Arrow
+        ctx.fillStyle = wood;
+        ctx.fillRect(s * 0.35, s * 0.43, s * 0.35, s * 0.03);
+        // Arrow tip
+        ctx.fillStyle = '#708090';
+        ctx.beginPath();
+        ctx.moveTo(s * 0.7, s * 0.445);
+        ctx.lineTo(s * 0.78, s * 0.445);
+        ctx.lineTo(s * 0.7, s * 0.42);
+        ctx.lineTo(s * 0.7, s * 0.47);
+        ctx.closePath();
+        ctx.fill();
+        // Arrow fletching
+        ctx.fillStyle = '#8b0000';
+        ctx.beginPath();
+        ctx.moveTo(s * 0.35, s * 0.445);
+        ctx.lineTo(s * 0.28, s * 0.4);
+        ctx.lineTo(s * 0.28, s * 0.49);
+        ctx.closePath();
+        ctx.fill();
+
+        // Quiver on back
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(s * 0.58, s * 0.3, s * 0.1, s * 0.28);
+
+        // Legs
+        ctx.fillStyle = '#556b2f';
+        ctx.fillRect(s * 0.42, s * 0.63, s * 0.07, s * 0.18);
+        ctx.fillRect(s * 0.51, s * 0.63, s * 0.07, s * 0.18);
+    }
+
+    // Horseman: Mounted figure
+    drawHorseman(ctx, s, skin, dark, color) {
+        // Horse body
+        ctx.fillStyle = '#8b4513';
+        ctx.beginPath();
+        ctx.ellipse(s * 0.5, s * 0.6, s * 0.3, s * 0.15, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Horse legs
+        ctx.fillStyle = '#6b3a0a';
+        ctx.fillRect(s * 0.25, s * 0.68, s * 0.06, s * 0.18);
+        ctx.fillRect(s * 0.35, s * 0.7, s * 0.06, s * 0.16);
+        ctx.fillRect(s * 0.58, s * 0.7, s * 0.06, s * 0.16);
+        ctx.fillRect(s * 0.68, s * 0.68, s * 0.06, s * 0.18);
+
+        // Horse neck
+        ctx.fillStyle = '#8b4513';
+        ctx.beginPath();
+        ctx.moveTo(s * 0.72, s * 0.55);
+        ctx.lineTo(s * 0.85, s * 0.35);
+        ctx.lineTo(s * 0.78, s * 0.35);
+        ctx.lineTo(s * 0.65, s * 0.55);
+        ctx.closePath();
+        ctx.fill();
+
+        // Horse head
+        ctx.fillStyle = '#8b4513';
+        ctx.beginPath();
+        ctx.ellipse(s * 0.88, s * 0.32, s * 0.08, s * 0.1, Math.PI / 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Horse eye
+        ctx.fillStyle = dark;
+        ctx.beginPath();
+        ctx.arc(s * 0.9, s * 0.3, s * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mane
+        ctx.fillStyle = '#2a1a0a';
+        ctx.fillRect(s * 0.72, s * 0.35, s * 0.08, s * 0.15);
+
+        // Tail
+        ctx.fillStyle = '#2a1a0a';
+        ctx.beginPath();
+        ctx.moveTo(s * 0.2, s * 0.55);
+        ctx.quadraticCurveTo(s * 0.08, s * 0.65, s * 0.12, s * 0.8);
+        ctx.lineTo(s * 0.18, s * 0.78);
+        ctx.quadraticCurveTo(s * 0.15, s * 0.65, s * 0.22, s * 0.58);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rider body
+        ctx.fillStyle = color;
+        ctx.fillRect(s * 0.42, s * 0.28, s * 0.16, s * 0.22);
+
+        // Rider head
+        ctx.fillStyle = skin;
+        ctx.beginPath();
+        ctx.arc(s * 0.5, s * 0.2, s * 0.09, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Helmet
+        ctx.fillStyle = '#708090';
+        ctx.beginPath();
+        ctx.arc(s * 0.5, s * 0.17, s * 0.09, Math.PI, 0);
+        ctx.fill();
+
+        // Sword
+        ctx.fillStyle = '#c0c0c0';
+        ctx.save();
+        ctx.translate(s * 0.62, s * 0.3);
+        ctx.rotate(Math.PI / 3);
+        ctx.fillRect(0, 0, s * 0.04, s * 0.25);
+        ctx.restore();
+
+        // Sword handle
+        ctx.fillStyle = '#8b4513';
+        ctx.fillRect(s * 0.6, s * 0.28, s * 0.06, s * 0.08);
+    }
+
+    // Catapult: Siege weapon
+    drawCatapult(ctx, s, dark, wood) {
+        // Base/wheels
+        ctx.fillStyle = wood;
+        ctx.fillRect(s * 0.15, s * 0.7, s * 0.7, s * 0.08);
+
+        // Wheels
+        ctx.fillStyle = '#5a4a3a';
+        ctx.beginPath();
+        ctx.arc(s * 0.25, s * 0.78, s * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(s * 0.75, s * 0.78, s * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Wheel spokes
+        ctx.strokeStyle = wood;
+        ctx.lineWidth = 2;
+        for (let wheel of [[s * 0.25, s * 0.78], [s * 0.75, s * 0.78]]) {
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(wheel[0], wheel[1]);
+                ctx.lineTo(
+                    wheel[0] + Math.cos(i * Math.PI / 2) * s * 0.08,
+                    wheel[1] + Math.sin(i * Math.PI / 2) * s * 0.08
+                );
+                ctx.stroke();
+            }
+        }
+
+        // Frame uprights
+        ctx.fillStyle = wood;
+        ctx.fillRect(s * 0.3, s * 0.35, s * 0.08, s * 0.35);
+        ctx.fillRect(s * 0.62, s * 0.35, s * 0.08, s * 0.35);
+
+        // Crossbar
+        ctx.fillRect(s * 0.28, s * 0.35, s * 0.44, s * 0.06);
+
+        // Throwing arm
+        ctx.fillStyle = '#6b4423';
+        ctx.save();
+        ctx.translate(s * 0.5, s * 0.38);
+        ctx.rotate(-Math.PI / 4);
+        ctx.fillRect(-s * 0.04, -s * 0.35, s * 0.08, s * 0.45);
+        ctx.restore();
+
+        // Bucket/sling
+        ctx.fillStyle = '#4a3a2a';
+        ctx.beginPath();
+        ctx.arc(s * 0.26, s * 0.15, s * 0.08, 0, Math.PI);
+        ctx.fill();
+
+        // Stone in bucket
+        ctx.fillStyle = '#808080';
+        ctx.beginPath();
+        ctx.arc(s * 0.26, s * 0.18, s * 0.05, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rope/tension
+        ctx.strokeStyle = '#8b7355';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(s * 0.5, s * 0.55);
+        ctx.lineTo(s * 0.5, s * 0.68);
+        ctx.stroke();
     }
 
     // Render selection highlight
