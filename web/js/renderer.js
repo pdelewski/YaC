@@ -130,6 +130,16 @@ class Renderer {
     drawTerrain(terrain, x, y, s, variation, tileX, tileY) {
         const ctx = this.ctx;
 
+        // Try to use loaded terrain tiles first
+        if (spriteManager && spriteManager.isTerrainReady()) {
+            const tile = spriteManager.getTerrain(terrain);
+            if (tile) {
+                ctx.drawImage(tile, x, y, s + 1, s + 1);
+                return;
+            }
+        }
+
+        // Fallback to programmatic drawing
         switch(terrain) {
             case 'Ocean':
                 this.drawOcean(ctx, x, y, s, variation);
