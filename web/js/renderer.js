@@ -1,0 +1,635 @@
+// Game renderer
+class Renderer {
+    constructor(canvas, minimapCanvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.minimap = minimapCanvas;
+        this.minimapCtx = minimapCanvas.getContext('2d');
+
+        // Camera
+        this.camera = {
+            x: 0,
+            y: 0,
+            zoom: 1.0
+        };
+
+        // Tile size
+        this.tileSize = Config.TILE_SIZE;
+
+        // Resize handler
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        const container = this.canvas.parentElement;
+        const containerWidth = container.clientWidth || container.offsetWidth || 800;
+        const containerHeight = container.clientHeight || container.offsetHeight || 600;
+
+        // Only resize if we have valid dimensions
+        if (containerWidth > 0 && containerHeight > 0) {
+            this.canvas.width = containerWidth;
+            this.canvas.height = containerHeight;
+        }
+
+        // Minimap size
+        const minimapContainer = this.minimap.parentElement;
+        const minimapWidth = (minimapContainer.clientWidth || minimapContainer.offsetWidth || 200) - 16;
+        if (minimapWidth > 0) {
+            this.minimap.width = minimapWidth;
+            this.minimap.height = 130;
+        }
+    }
+
+    // Main render loop
+    render() {
+        this.clear();
+
+        if (!gameState.map) {
+            // Draw "waiting for game" message
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '20px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Waiting for game data...', this.canvas.width / 2, this.canvas.height / 2);
+            return;
+        }
+
+        this.renderMap();
+        this.renderCities();
+        this.renderUnits();
+        this.renderSelection();
+        this.renderMinimap();
+    }
+
+    clear() {
+        this.ctx.fillStyle = '#0a0a14';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // Convert world coordinates to screen coordinates
+    worldToScreen(x, y) {
+        const screenX = (x * this.tileSize - this.camera.x) * this.camera.zoom;
+        const screenY = (y * this.tileSize - this.camera.y) * this.camera.zoom;
+        return { x: screenX, y: screenY };
+    }
+
+    // Convert screen coordinates to world tile coordinates
+    screenToWorld(screenX, screenY) {
+        const worldX = (screenX / this.camera.zoom + this.camera.x) / this.tileSize;
+        const worldY = (screenY / this.camera.zoom + this.camera.y) / this.tileSize;
+        return { x: Math.floor(worldX), y: Math.floor(worldY) };
+    }
+
+    // Get visible tile range
+    getVisibleRange() {
+        const startTile = this.screenToWorld(0, 0);
+        const endTile = this.screenToWorld(this.canvas.width, this.canvas.height);
+
+        return {
+            startX: Math.max(0, startTile.x - 1),
+            startY: Math.max(0, startTile.y - 1),
+            endX: Math.min(gameState.map.width, endTile.x + 2),
+            endY: Math.min(gameState.map.height, endTile.y + 2)
+        };
+    }
+
+    // Render map tiles
+    renderMap() {
+        const range = this.getVisibleRange();
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        for (let y = range.startY; y < range.endY; y++) {
+            for (let x = range.startX; x < range.endX; x++) {
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+
+                const screen = this.worldToScreen(x, y);
+
+                // Draw terrain base
+                this.ctx.fillStyle = Config.TERRAIN_COLORS[tile.terrain] || '#888';
+                this.ctx.fillRect(screen.x, screen.y, scaledTileSize + 1, scaledTileSize + 1);
+
+                // Add terrain texture/detail based on type
+                if (tile.terrain === 'Forest') {
+                    // Draw simple tree symbols
+                    this.ctx.fillStyle = '#1a4a1a';
+                    const treeSize = scaledTileSize * 0.2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screen.x + scaledTileSize * 0.3, screen.y + scaledTileSize * 0.6);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.4, screen.y + scaledTileSize * 0.3);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.6);
+                    this.ctx.fill();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.7);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.6, screen.y + scaledTileSize * 0.4);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.7, screen.y + scaledTileSize * 0.7);
+                    this.ctx.fill();
+                } else if (tile.terrain === 'Hills') {
+                    // Draw hill bumps
+                    this.ctx.fillStyle = '#5a4a32';
+                    this.ctx.beginPath();
+                    this.ctx.arc(screen.x + scaledTileSize * 0.35, screen.y + scaledTileSize * 0.6, scaledTileSize * 0.2, Math.PI, 0);
+                    this.ctx.fill();
+                    this.ctx.beginPath();
+                    this.ctx.arc(screen.x + scaledTileSize * 0.65, screen.y + scaledTileSize * 0.55, scaledTileSize * 0.15, Math.PI, 0);
+                    this.ctx.fill();
+                } else if (tile.terrain === 'Mountains') {
+                    // Draw mountain peaks
+                    this.ctx.fillStyle = '#4a4a4a';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screen.x + scaledTileSize * 0.2, screen.y + scaledTileSize * 0.8);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.4, screen.y + scaledTileSize * 0.2);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.6, screen.y + scaledTileSize * 0.8);
+                    this.ctx.fill();
+                    // Snow cap
+                    this.ctx.fillStyle = '#ddd';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screen.x + scaledTileSize * 0.35, screen.y + scaledTileSize * 0.35);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.4, screen.y + scaledTileSize * 0.2);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.45, screen.y + scaledTileSize * 0.35);
+                    this.ctx.fill();
+                } else if (tile.terrain === 'Ocean') {
+                    // Draw wave pattern
+                    this.ctx.strokeStyle = '#2a5a7e';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screen.x + scaledTileSize * 0.1, screen.y + scaledTileSize * 0.5);
+                    this.ctx.quadraticCurveTo(
+                        screen.x + scaledTileSize * 0.3, screen.y + scaledTileSize * 0.4,
+                        screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.5
+                    );
+                    this.ctx.quadraticCurveTo(
+                        screen.x + scaledTileSize * 0.7, screen.y + scaledTileSize * 0.6,
+                        screen.x + scaledTileSize * 0.9, screen.y + scaledTileSize * 0.5
+                    );
+                    this.ctx.stroke();
+                }
+
+                // Draw grid lines (classic Civ style - darker)
+                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
+
+                // Draw improvements
+                if (tile.has_road) {
+                    this.ctx.fillStyle = '#654321';
+                    this.ctx.fillRect(
+                        screen.x + scaledTileSize * 0.3,
+                        screen.y + scaledTileSize * 0.4,
+                        scaledTileSize * 0.4,
+                        scaledTileSize * 0.2
+                    );
+                }
+            }
+        }
+    }
+
+    // Render cities
+    renderCities() {
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        for (const player of gameState.players) {
+            for (const city of player.cities) {
+                const screen = this.worldToScreen(city.x, city.y);
+                const cx = screen.x + scaledTileSize / 2;
+                const cy = screen.y + scaledTileSize / 2;
+
+                // City walls/fortification (outer rectangle)
+                this.ctx.fillStyle = '#4a4a4a';
+                this.ctx.fillRect(
+                    screen.x + scaledTileSize * 0.1,
+                    screen.y + scaledTileSize * 0.1,
+                    scaledTileSize * 0.8,
+                    scaledTileSize * 0.8
+                );
+
+                // City inner area with player color
+                this.ctx.fillStyle = player.color;
+                this.ctx.fillRect(
+                    screen.x + scaledTileSize * 0.15,
+                    screen.y + scaledTileSize * 0.15,
+                    scaledTileSize * 0.7,
+                    scaledTileSize * 0.7
+                );
+
+                // City center (tower/building)
+                this.ctx.fillStyle = '#2a2a2a';
+                this.ctx.fillRect(
+                    screen.x + scaledTileSize * 0.35,
+                    screen.y + scaledTileSize * 0.25,
+                    scaledTileSize * 0.3,
+                    scaledTileSize * 0.4
+                );
+
+                // Tower top
+                this.ctx.fillStyle = '#5a5a5a';
+                this.ctx.beginPath();
+                this.ctx.moveTo(screen.x + scaledTileSize * 0.3, screen.y + scaledTileSize * 0.25);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.1);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.7, screen.y + scaledTileSize * 0.25);
+                this.ctx.fill();
+
+                // Population number in shield
+                const shieldX = screen.x + scaledTileSize * 0.65;
+                const shieldY = screen.y + scaledTileSize * 0.65;
+
+                // Shield background
+                this.ctx.fillStyle = '#1a1a4a';
+                this.ctx.beginPath();
+                this.ctx.moveTo(shieldX, shieldY - scaledTileSize * 0.15);
+                this.ctx.lineTo(shieldX + scaledTileSize * 0.18, shieldY);
+                this.ctx.lineTo(shieldX, shieldY + scaledTileSize * 0.2);
+                this.ctx.lineTo(shieldX - scaledTileSize * 0.18, shieldY);
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.strokeStyle = '#ffd700';
+                this.ctx.lineWidth = 1;
+                this.ctx.stroke();
+
+                // Population number
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = `bold ${Math.max(8, scaledTileSize * 0.3)}px sans-serif`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(city.population.toString(), shieldX, shieldY);
+
+                // City name (if zoomed in enough)
+                if (this.camera.zoom >= 0.7) {
+                    // Name background
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    const nameWidth = this.ctx.measureText(city.name).width + 6;
+                    this.ctx.fillRect(
+                        cx - nameWidth / 2,
+                        screen.y + scaledTileSize + 2,
+                        nameWidth,
+                        14
+                    );
+
+                    // Name text
+                    this.ctx.fillStyle = '#ffd700';
+                    this.ctx.font = `${Math.max(9, scaledTileSize * 0.28)}px MedievalSharp, serif`;
+                    this.ctx.fillText(
+                        city.name,
+                        cx,
+                        screen.y + scaledTileSize + 11
+                    );
+                }
+            }
+        }
+    }
+
+    // Render units
+    renderUnits() {
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        if (!gameState.players || gameState.players.length === 0) {
+            return;
+        }
+
+        for (const player of gameState.players) {
+            if (!player.units || player.units.length === 0) {
+                continue;
+            }
+            for (const unit of player.units) {
+                const screen = this.worldToScreen(unit.x, unit.y);
+                const cx = screen.x + scaledTileSize / 2;
+                const cy = screen.y + scaledTileSize / 2;
+
+                // Shield shape for unit
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.1);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.25);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.55);
+                this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.9);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.55);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.25);
+                this.ctx.closePath();
+
+                // Fill with player color
+                this.ctx.fillStyle = player.color;
+                this.ctx.fill();
+
+                // Shield border
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+
+                // Inner shield detail line
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.18);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.78, screen.y + scaledTileSize * 0.28);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.78, screen.y + scaledTileSize * 0.52);
+                this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.82);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.22, screen.y + scaledTileSize * 0.52);
+                this.ctx.lineTo(screen.x + scaledTileSize * 0.22, screen.y + scaledTileSize * 0.28);
+                this.ctx.closePath();
+                this.ctx.stroke();
+
+                // Unit type letter with shadow
+                const letter = this.getUnitLetter(unit.type);
+                this.ctx.font = `bold ${Math.max(12, scaledTileSize * 0.45)}px sans-serif`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+
+                // Shadow
+                this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                this.ctx.fillText(letter, cx + 1, cy + 1);
+
+                // Letter
+                this.ctx.fillStyle = '#fff';
+                this.ctx.fillText(letter, cx, cy);
+
+                // Veteran star (gold)
+                if (unit.is_veteran) {
+                    this.ctx.fillStyle = '#ffd700';
+                    this.ctx.font = `bold ${scaledTileSize * 0.35}px sans-serif`;
+                    this.ctx.fillText('\u2605', screen.x + scaledTileSize * 0.78, screen.y + scaledTileSize * 0.22);
+                }
+
+                // Fortified indicator (double border)
+                if (unit.is_fortified) {
+                    this.ctx.strokeStyle = '#4a9eff';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.05);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.9, screen.y + scaledTileSize * 0.22);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.9, screen.y + scaledTileSize * 0.58);
+                    this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.95);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.1, screen.y + scaledTileSize * 0.58);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.1, screen.y + scaledTileSize * 0.22);
+                    this.ctx.closePath();
+                    this.ctx.stroke();
+                }
+
+                // Movement indicator (dim overlay if no movement left)
+                if (unit.movement_left === 0) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(cx, screen.y + scaledTileSize * 0.1);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.25);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.55);
+                    this.ctx.lineTo(cx, screen.y + scaledTileSize * 0.9);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.55);
+                    this.ctx.lineTo(screen.x + scaledTileSize * 0.15, screen.y + scaledTileSize * 0.25);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                }
+            }
+        }
+    }
+
+    // Get unit letter for display
+    getUnitLetter(unitType) {
+        const letters = {
+            'Settler': 'S',
+            'Warrior': 'W',
+            'Phalanx': 'P',
+            'Archer': 'A',
+            'Horseman': 'H',
+            'Catapult': 'C'
+        };
+        return letters[unitType] || '?';
+    }
+
+    // Render selection highlight
+    renderSelection() {
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        // Selected unit
+        if (gameState.selectedUnit) {
+            const unit = gameState.selectedUnit;
+            const screen = this.worldToScreen(unit.x, unit.y);
+
+            // Highlight
+            this.ctx.strokeStyle = '#ffff00';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(
+                screen.x + 2,
+                screen.y + 2,
+                scaledTileSize - 4,
+                scaledTileSize - 4
+            );
+
+            // Show movement range when in move mode
+            if (gameState.mode === 'move' && unit.movement_left > 0) {
+                this.renderMovementRange(unit);
+            }
+
+            // Show attack range when in attack mode
+            if (gameState.mode === 'attack') {
+                this.renderAttackRange(unit);
+            }
+        }
+
+        // Selected city
+        if (gameState.selectedCity) {
+            const city = gameState.selectedCity;
+            const screen = this.worldToScreen(city.x, city.y);
+
+            this.ctx.strokeStyle = '#ffff00';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(
+                screen.x + 2,
+                screen.y + 2,
+                scaledTileSize - 4,
+                scaledTileSize - 4
+            );
+        }
+    }
+
+    // Render movement range overlay
+    renderMovementRange(unit) {
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+
+                const x = unit.x + dx;
+                const y = unit.y + dy;
+
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+                if (tile.terrain === 'Ocean') continue;
+                if (tile.terrain === 'Mountains') continue;
+
+                const screen = this.worldToScreen(x, y);
+
+                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                this.ctx.fillRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
+
+                this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
+            }
+        }
+    }
+
+    // Render attack range overlay
+    renderAttackRange(unit) {
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+
+                const x = unit.x + dx;
+                const y = unit.y + dy;
+
+                // Check for enemies
+                const enemies = gameState.getEnemyUnitsAt(x, y);
+                const enemyCity = gameState.getCityAt(x, y);
+                const hasEnemy = enemies.length > 0 || (enemyCity && enemyCity.owner_id !== gameState.myPlayerId);
+
+                if (hasEnemy) {
+                    const screen = this.worldToScreen(x, y);
+
+                    this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                    this.ctx.fillRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
+
+                    this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
+                }
+            }
+        }
+    }
+
+    // Render minimap
+    renderMinimap() {
+        if (!gameState.map) return;
+
+        const ctx = this.minimapCtx;
+        const width = this.minimap.width;
+        const height = this.minimap.height;
+
+        // Clear with dark ocean color
+        ctx.fillStyle = '#0a1520';
+        ctx.fillRect(0, 0, width, height);
+
+        // Calculate scale
+        const scaleX = width / gameState.map.width;
+        const scaleY = height / gameState.map.height;
+        const scale = Math.min(scaleX, scaleY);
+
+        const offsetX = (width - gameState.map.width * scale) / 2;
+        const offsetY = (height - gameState.map.height * scale) / 2;
+
+        // Draw terrain with classic minimap colors
+        const minimapColors = {
+            'Ocean': '#1a3a5a',
+            'Grassland': '#2a5a2a',
+            'Plains': '#6a6a4a',
+            'Desert': '#8a7a4a',
+            'Hills': '#5a4a3a',
+            'Mountains': '#4a4a4a',
+            'Forest': '#1a4a1a'
+        };
+
+        for (let y = 0; y < gameState.map.height; y++) {
+            for (let x = 0; x < gameState.map.width; x++) {
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+
+                ctx.fillStyle = minimapColors[tile.terrain] || '#888';
+                ctx.fillRect(
+                    offsetX + x * scale,
+                    offsetY + y * scale,
+                    Math.ceil(scale),
+                    Math.ceil(scale)
+                );
+            }
+        }
+
+        // Draw units as small dots
+        for (const player of gameState.players) {
+            if (player.units) {
+                for (const unit of player.units) {
+                    ctx.fillStyle = player.color;
+                    ctx.fillRect(
+                        offsetX + unit.x * scale,
+                        offsetY + unit.y * scale,
+                        Math.max(2, scale),
+                        Math.max(2, scale)
+                    );
+                }
+            }
+        }
+
+        // Draw cities as larger squares
+        for (const player of gameState.players) {
+            for (const city of player.cities) {
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(
+                    offsetX + city.x * scale - 1,
+                    offsetY + city.y * scale - 1,
+                    Math.max(4, scale + 2),
+                    Math.max(4, scale + 2)
+                );
+                ctx.fillStyle = player.color;
+                ctx.fillRect(
+                    offsetX + city.x * scale,
+                    offsetY + city.y * scale,
+                    Math.max(3, scale),
+                    Math.max(3, scale)
+                );
+            }
+        }
+
+        // Draw viewport rectangle with classic yellow
+        const viewStart = this.screenToWorld(0, 0);
+        const viewEnd = this.screenToWorld(this.canvas.width, this.canvas.height);
+
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(
+            offsetX + viewStart.x * scale,
+            offsetY + viewStart.y * scale,
+            (viewEnd.x - viewStart.x) * scale,
+            (viewEnd.y - viewStart.y) * scale
+        );
+    }
+
+    // Camera controls
+    pan(dx, dy) {
+        this.camera.x += dx / this.camera.zoom;
+        this.camera.y += dy / this.camera.zoom;
+        this.clampCamera();
+    }
+
+    zoom(delta, centerX, centerY) {
+        const oldZoom = this.camera.zoom;
+        this.camera.zoom *= (1 + delta * Config.CAMERA.ZOOM_SPEED);
+        this.camera.zoom = Math.max(Config.CAMERA.MIN_ZOOM, Math.min(Config.CAMERA.MAX_ZOOM, this.camera.zoom));
+
+        // Zoom toward mouse position
+        const zoomRatio = this.camera.zoom / oldZoom;
+        this.camera.x += centerX / oldZoom * (1 - zoomRatio);
+        this.camera.y += centerY / oldZoom * (1 - zoomRatio);
+
+        this.clampCamera();
+    }
+
+    centerOn(x, y) {
+        if (!gameState.map) return;
+
+        this.camera.x = x * this.tileSize - this.canvas.width / (2 * this.camera.zoom);
+        this.camera.y = y * this.tileSize - this.canvas.height / (2 * this.camera.zoom);
+        this.clampCamera();
+    }
+
+    clampCamera() {
+        if (!gameState.map) return;
+
+        const maxX = gameState.map.width * this.tileSize - this.canvas.width / this.camera.zoom;
+        const maxY = gameState.map.height * this.tileSize - this.canvas.height / this.camera.zoom;
+
+        this.camera.x = Math.max(0, Math.min(maxX, this.camera.x));
+        this.camera.y = Math.max(0, Math.min(maxY, this.camera.y));
+    }
+}
+
+// Global renderer instance (created in main.js)
+let renderer = null;

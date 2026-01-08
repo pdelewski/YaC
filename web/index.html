@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civilization</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <h1>Civilization</h1>
+            <p class="subtitle">Build an Empire to Stand the Test of Time</p>
+            <div class="start-form">
+                <div class="form-group">
+                    <label for="player-name">Your Name:</label>
+                    <input type="text" id="player-name" value="Player" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label for="map-size">Map Size:</label>
+                    <select id="map-size">
+                        <option value="small">Small (60x40)</option>
+                        <option value="medium" selected>Medium (80x50)</option>
+                        <option value="large">Large (100x60)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="opponents">AI Opponents:</label>
+                    <select id="opponents">
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                <button id="start-game" class="btn-primary">Start Game</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen hidden">
+            <!-- Top Bar -->
+            <div id="top-bar">
+                <div id="turn-info">
+                    <span id="turn-number">Turn 1</span>
+                    <span id="current-player">Your Turn</span>
+                </div>
+                <div id="resources">
+                    <span id="gold-display">Gold: 0</span>
+                </div>
+                <button id="end-turn-btn" class="btn-action">End Turn</button>
+            </div>
+
+            <!-- Main Content -->
+            <div id="main-content">
+                <!-- Game Canvas -->
+                <div id="canvas-container">
+                    <canvas id="game-canvas"></canvas>
+                </div>
+
+                <!-- Right Panel -->
+                <div id="right-panel">
+                    <!-- Minimap -->
+                    <div id="minimap-container">
+                        <h4>World Map</h4>
+                        <canvas id="minimap"></canvas>
+                    </div>
+
+                    <!-- Selection Info -->
+                    <div id="selection-panel">
+                        <h3>Selection</h3>
+                        <div id="selection-info">
+                            <p class="no-selection">Nothing selected</p>
+                        </div>
+                    </div>
+
+                    <!-- Unit Actions -->
+                    <div id="unit-actions" class="hidden">
+                        <button id="btn-move" class="btn-unit" title="Move (M)">Move</button>
+                        <button id="btn-attack" class="btn-unit" title="Attack (A)">Attack</button>
+                        <button id="btn-fortify" class="btn-unit" title="Fortify (F)">Fortify</button>
+                        <button id="btn-found-city" class="btn-unit hidden" title="Found City (B)">Build City</button>
+                        <button id="btn-skip" class="btn-unit" title="Skip (S)">Skip</button>
+                    </div>
+
+                    <!-- Keyboard Hints -->
+                    <div class="keyboard-hints">
+                        <kbd>M</kbd> Move <kbd>A</kbd> Attack <kbd>F</kbd> Fortify<br>
+                        <kbd>B</kbd> Build City <kbd>S</kbd> Skip <kbd>Enter</kbd> End Turn<br>
+                        <kbd>H</kbd> Home <kbd>C</kbd> Center <kbd>Arrows</kbd> Pan
+                    </div>
+                </div>
+            </div>
+
+            <!-- City Modal -->
+            <div id="city-modal" class="modal hidden">
+                <div class="modal-content">
+                    <span class="close-btn">&times;</span>
+                    <h2 id="city-name">City</h2>
+                    <div class="city-stats">
+                        <p>Population: <span id="city-pop">1</span></p>
+                        <p>Food: <span id="city-food">0</span>/<span id="city-food-needed">10</span></p>
+                        <p>Production: <span id="city-prod">0</span>/<span id="city-prod-needed">0</span></p>
+                    </div>
+                    <div class="city-buildings">
+                        <h4>Buildings</h4>
+                        <ul id="city-building-list"></ul>
+                    </div>
+                    <div class="city-production">
+                        <h4>Build</h4>
+                        <div id="production-options"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Over Modal -->
+            <div id="game-over-modal" class="modal hidden">
+                <div class="modal-content">
+                    <h2 id="game-over-title">Game Over</h2>
+                    <p id="game-over-message"></p>
+                    <button id="new-game-btn" class="btn-primary">New Game</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
