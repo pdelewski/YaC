@@ -584,7 +584,17 @@ class Renderer {
         const ctx = this.ctx;
         const s = size; // shorthand for size
 
-        // Common colors
+        // Try to use loaded sprite first
+        if (spriteManager && spriteManager.isReady()) {
+            const sprite = spriteManager.getSprite(unitType);
+            if (sprite) {
+                // Draw the sprite scaled to fit
+                ctx.drawImage(sprite, x, y, s, s);
+                return;
+            }
+        }
+
+        // Fallback to procedural drawing if sprites not loaded
         const skin = '#deb887';
         const dark = '#2a2a2a';
         const metal = '#708090';

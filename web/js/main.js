@@ -4,6 +4,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Civilization game initializing...');
 
+    // Initialize sprite manager and start loading sprites
+    spriteManager = new SpriteManager();
+    spriteManager.loadAll();
+
     // Initialize UI
     ui = new UI();
 
