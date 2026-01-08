@@ -12,13 +12,13 @@ const Config = {
 
     // Terrain colors (Classic Civ 1 style)
     TERRAIN_COLORS: {
-        'Ocean': '#1a4a6e',
-        'Grassland': '#3a7a3a',
-        'Plains': '#8b8b5a',
-        'Desert': '#c4a860',
-        'Hills': '#6b5a42',
-        'Mountains': '#5a5a5a',
-        'Forest': '#2a5a2a'
+        'Ocean': '#0040a0',
+        'Grassland': '#00a800',
+        'Plains': '#c8b040',
+        'Desert': '#e8d858',
+        'Hills': '#987850',
+        'Mountains': '#808080',
+        'Forest': '#006800'
     },
 
     // Player colors (matching server)

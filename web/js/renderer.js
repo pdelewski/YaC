@@ -104,84 +104,295 @@ class Renderer {
                 if (!tile) continue;
 
                 const screen = this.worldToScreen(x, y);
+                const s = scaledTileSize;
 
-                // Draw terrain base
-                this.ctx.fillStyle = Config.TERRAIN_COLORS[tile.terrain] || '#888';
-                this.ctx.fillRect(screen.x, screen.y, scaledTileSize + 1, scaledTileSize + 1);
+                // Use tile coordinates for consistent pseudo-random variation
+                const seed = (x * 7919 + y * 104729) % 1000;
+                const variation = seed / 1000;
 
-                // Add terrain texture/detail based on type
-                if (tile.terrain === 'Forest') {
-                    // Draw simple tree symbols
-                    this.ctx.fillStyle = '#1a4a1a';
-                    const treeSize = scaledTileSize * 0.2;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(screen.x + scaledTileSize * 0.3, screen.y + scaledTileSize * 0.6);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.4, screen.y + scaledTileSize * 0.3);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.6);
-                    this.ctx.fill();
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.7);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.6, screen.y + scaledTileSize * 0.4);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.7, screen.y + scaledTileSize * 0.7);
-                    this.ctx.fill();
-                } else if (tile.terrain === 'Hills') {
-                    // Draw hill bumps
-                    this.ctx.fillStyle = '#5a4a32';
-                    this.ctx.beginPath();
-                    this.ctx.arc(screen.x + scaledTileSize * 0.35, screen.y + scaledTileSize * 0.6, scaledTileSize * 0.2, Math.PI, 0);
-                    this.ctx.fill();
-                    this.ctx.beginPath();
-                    this.ctx.arc(screen.x + scaledTileSize * 0.65, screen.y + scaledTileSize * 0.55, scaledTileSize * 0.15, Math.PI, 0);
-                    this.ctx.fill();
-                } else if (tile.terrain === 'Mountains') {
-                    // Draw mountain peaks
-                    this.ctx.fillStyle = '#4a4a4a';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(screen.x + scaledTileSize * 0.2, screen.y + scaledTileSize * 0.8);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.4, screen.y + scaledTileSize * 0.2);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.6, screen.y + scaledTileSize * 0.8);
-                    this.ctx.fill();
-                    // Snow cap
-                    this.ctx.fillStyle = '#ddd';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(screen.x + scaledTileSize * 0.35, screen.y + scaledTileSize * 0.35);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.4, screen.y + scaledTileSize * 0.2);
-                    this.ctx.lineTo(screen.x + scaledTileSize * 0.45, screen.y + scaledTileSize * 0.35);
-                    this.ctx.fill();
-                } else if (tile.terrain === 'Ocean') {
-                    // Draw wave pattern
-                    this.ctx.strokeStyle = '#2a5a7e';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(screen.x + scaledTileSize * 0.1, screen.y + scaledTileSize * 0.5);
-                    this.ctx.quadraticCurveTo(
-                        screen.x + scaledTileSize * 0.3, screen.y + scaledTileSize * 0.4,
-                        screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.5
-                    );
-                    this.ctx.quadraticCurveTo(
-                        screen.x + scaledTileSize * 0.7, screen.y + scaledTileSize * 0.6,
-                        screen.x + scaledTileSize * 0.9, screen.y + scaledTileSize * 0.5
-                    );
-                    this.ctx.stroke();
-                }
+                // Draw terrain based on type
+                this.drawTerrain(tile.terrain, screen.x, screen.y, s, variation, x, y);
 
-                // Draw grid lines (classic Civ style - darker)
-                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+                // Draw grid lines (subtle)
+                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
                 this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
+                this.ctx.strokeRect(screen.x, screen.y, s, s);
 
                 // Draw improvements
                 if (tile.has_road) {
-                    this.ctx.fillStyle = '#654321';
-                    this.ctx.fillRect(
-                        screen.x + scaledTileSize * 0.3,
-                        screen.y + scaledTileSize * 0.4,
-                        scaledTileSize * 0.4,
-                        scaledTileSize * 0.2
-                    );
+                    this.drawRoad(screen.x, screen.y, s);
                 }
             }
         }
+    }
+
+    // Draw terrain based on type
+    drawTerrain(terrain, x, y, s, variation, tileX, tileY) {
+        const ctx = this.ctx;
+
+        switch(terrain) {
+            case 'Ocean':
+                this.drawOcean(ctx, x, y, s, variation);
+                break;
+            case 'Grassland':
+                this.drawGrassland(ctx, x, y, s, variation);
+                break;
+            case 'Plains':
+                this.drawPlains(ctx, x, y, s, variation);
+                break;
+            case 'Desert':
+                this.drawDesert(ctx, x, y, s, variation);
+                break;
+            case 'Hills':
+                this.drawHills(ctx, x, y, s, variation);
+                break;
+            case 'Mountains':
+                this.drawMountains(ctx, x, y, s, variation);
+                break;
+            case 'Forest':
+                this.drawForest(ctx, x, y, s, variation);
+                break;
+            default:
+                ctx.fillStyle = '#888';
+                ctx.fillRect(x, y, s, s);
+        }
+    }
+
+    // Ocean - Classic Civ 1 style: solid blue with simple wave pattern
+    drawOcean(ctx, x, y, s, v) {
+        // Solid deep blue base
+        ctx.fillStyle = '#0040a0';
+        ctx.fillRect(x, y, s + 1, s + 1);
+
+        // Simple wave lines (Civ 1 style)
+        ctx.strokeStyle = '#0050c0';
+        ctx.lineWidth = Math.max(1, s * 0.06);
+
+        // Two simple wave arcs
+        ctx.beginPath();
+        ctx.arc(x + s * 0.25, y + s * 0.4, s * 0.15, 0, Math.PI);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(x + s * 0.7, y + s * 0.65, s * 0.12, 0, Math.PI);
+        ctx.stroke();
+    }
+
+    // Grassland - Classic Civ 1 style: bright green with small tufts
+    drawGrassland(ctx, x, y, s, v) {
+        // Solid bright green
+        ctx.fillStyle = '#00a800';
+        ctx.fillRect(x, y, s + 1, s + 1);
+
+        // Simple grass tufts (small vertical lines)
+        ctx.strokeStyle = '#008000';
+        ctx.lineWidth = Math.max(1, s * 0.04);
+
+        const positions = [
+            [0.2, 0.3], [0.5, 0.25], [0.8, 0.35],
+            [0.3, 0.6], [0.6, 0.55], [0.75, 0.7],
+            [0.15, 0.8], [0.45, 0.75], [0.85, 0.85]
+        ];
+
+        for (const [px, py] of positions) {
+            ctx.beginPath();
+            ctx.moveTo(x + s * px, y + s * py);
+            ctx.lineTo(x + s * px, y + s * (py - 0.08));
+            ctx.stroke();
+        }
+    }
+
+    // Plains - Classic Civ 1 style: tan/yellow with simple grass
+    drawPlains(ctx, x, y, s, v) {
+        // Tan/wheat color base
+        ctx.fillStyle = '#c8b040';
+        ctx.fillRect(x, y, s + 1, s + 1);
+
+        // Simple dry grass lines
+        ctx.strokeStyle = '#a89030';
+        ctx.lineWidth = Math.max(1, s * 0.03);
+
+        for (let i = 0; i < 6; i++) {
+            const px = x + s * (0.15 + i * 0.14);
+            const py = y + s * (0.5 + (i % 2) * 0.2);
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px - s * 0.03, py - s * 0.12);
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + s * 0.03, py - s * 0.1);
+            ctx.stroke();
+        }
+
+        // Optional shield/resource icon (like Civ 1)
+        if (v > 0.8) {
+            ctx.fillStyle = '#a08020';
+            ctx.beginPath();
+            ctx.arc(x + s * 0.5, y + s * 0.5, s * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Desert - Classic Civ 1 style: bright yellow/sand
+    drawDesert(ctx, x, y, s, v) {
+        // Bright sand yellow
+        ctx.fillStyle = '#e8d858';
+        ctx.fillRect(x, y, s + 1, s + 1);
+
+        // Simple dune shading
+        ctx.fillStyle = '#d0c048';
+        ctx.beginPath();
+        ctx.moveTo(x, y + s * 0.7);
+        ctx.quadraticCurveTo(x + s * 0.5, y + s * 0.4, x + s, y + s * 0.6);
+        ctx.lineTo(x + s, y + s);
+        ctx.lineTo(x, y + s);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cactus (occasional, like Civ 1 oasis)
+        if (v > 0.75) {
+            ctx.fillStyle = '#208020';
+            // Cactus trunk
+            ctx.fillRect(x + s * 0.47, y + s * 0.45, s * 0.06, s * 0.25);
+            // Cactus arms
+            ctx.fillRect(x + s * 0.35, y + s * 0.5, s * 0.12, s * 0.05);
+            ctx.fillRect(x + s * 0.35, y + s * 0.45, s * 0.05, s * 0.1);
+            ctx.fillRect(x + s * 0.53, y + s * 0.55, s * 0.12, s * 0.05);
+            ctx.fillRect(x + s * 0.6, y + s * 0.5, s * 0.05, s * 0.1);
+        }
+    }
+
+    // Hills - Classic Civ 1 style: brown mounds
+    drawHills(ctx, x, y, s, v) {
+        // Green-brown base
+        ctx.fillStyle = '#689030';
+        ctx.fillRect(x, y, s + 1, s + 1);
+
+        // Front hill (brown/tan)
+        ctx.fillStyle = '#987850';
+        ctx.beginPath();
+        ctx.moveTo(x, y + s);
+        ctx.quadraticCurveTo(x + s * 0.3, y + s * 0.35, x + s * 0.55, y + s * 0.45);
+        ctx.quadraticCurveTo(x + s * 0.8, y + s * 0.55, x + s, y + s);
+        ctx.closePath();
+        ctx.fill();
+
+        // Hill highlight
+        ctx.fillStyle = '#a89060';
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.1, y + s * 0.85);
+        ctx.quadraticCurveTo(x + s * 0.3, y + s * 0.4, x + s * 0.5, y + s * 0.48);
+        ctx.lineTo(x + s * 0.35, y + s * 0.65);
+        ctx.closePath();
+        ctx.fill();
+
+        // Back hill
+        ctx.fillStyle = '#786840';
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.4, y + s * 0.5);
+        ctx.quadraticCurveTo(x + s * 0.65, y + s * 0.25, x + s * 0.9, y + s * 0.4);
+        ctx.lineTo(x + s * 0.9, y + s * 0.55);
+        ctx.quadraticCurveTo(x + s * 0.65, y + s * 0.45, x + s * 0.4, y + s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Mountains - Classic Civ 1 style: gray triangular peaks with snow
+    drawMountains(ctx, x, y, s, v) {
+        // Dark base
+        ctx.fillStyle = '#585858';
+        ctx.fillRect(x, y, s + 1, s + 1);
+
+        // Back mountain
+        ctx.fillStyle = '#686868';
+        ctx.beginPath();
+        ctx.moveTo(x, y + s * 0.9);
+        ctx.lineTo(x + s * 0.25, y + s * 0.35);
+        ctx.lineTo(x + s * 0.5, y + s * 0.9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Main mountain (lighter gray)
+        ctx.fillStyle = '#808080';
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.15, y + s);
+        ctx.lineTo(x + s * 0.5, y + s * 0.1);
+        ctx.lineTo(x + s * 0.85, y + s);
+        ctx.closePath();
+        ctx.fill();
+
+        // Shaded right side
+        ctx.fillStyle = '#606060';
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.5, y + s * 0.1);
+        ctx.lineTo(x + s * 0.85, y + s);
+        ctx.lineTo(x + s * 0.5, y + s);
+        ctx.closePath();
+        ctx.fill();
+
+        // Snow cap (classic white triangle)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.5, y + s * 0.1);
+        ctx.lineTo(x + s * 0.38, y + s * 0.32);
+        ctx.lineTo(x + s * 0.62, y + s * 0.32);
+        ctx.closePath();
+        ctx.fill();
+
+        // Snow cap shaded side
+        ctx.fillStyle = '#d0d0d0';
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.5, y + s * 0.1);
+        ctx.lineTo(x + s * 0.62, y + s * 0.32);
+        ctx.lineTo(x + s * 0.5, y + s * 0.32);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Forest - Classic Civ 1 style: green with iconic pine trees
+    drawForest(ctx, x, y, s, v) {
+        // Dark green base
+        ctx.fillStyle = '#006800';
+        ctx.fillRect(x, y, s + 1, s + 1);
+
+        // Draw 3 iconic pine trees (like Civ 1)
+        this.drawPineTree(ctx, x + s * 0.25, y + s * 0.85, s * 0.35);
+        this.drawPineTree(ctx, x + s * 0.6, y + s * 0.9, s * 0.4);
+        this.drawPineTree(ctx, x + s * 0.8, y + s * 0.75, s * 0.28);
+    }
+
+    // Draw a simple Civ 1 style pine tree
+    drawPineTree(ctx, tx, ty, size) {
+        // Brown trunk
+        ctx.fillStyle = '#604020';
+        ctx.fillRect(tx - size * 0.08, ty - size * 0.15, size * 0.16, size * 0.2);
+
+        // Dark green triangle (tree body)
+        ctx.fillStyle = '#008000';
+        ctx.beginPath();
+        ctx.moveTo(tx, ty - size);
+        ctx.lineTo(tx - size * 0.4, ty - size * 0.1);
+        ctx.lineTo(tx + size * 0.4, ty - size * 0.1);
+        ctx.closePath();
+        ctx.fill();
+
+        // Lighter highlight on left side
+        ctx.fillStyle = '#00a000';
+        ctx.beginPath();
+        ctx.moveTo(tx, ty - size);
+        ctx.lineTo(tx - size * 0.35, ty - size * 0.15);
+        ctx.lineTo(tx, ty - size * 0.3);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Draw road improvement
+    drawRoad(x, y, s) {
+        const ctx = this.ctx;
+
+        // Brown road (cross pattern like Civ 1)
+        ctx.fillStyle = '#806040';
+        ctx.fillRect(x + s * 0.4, y, s * 0.2, s);
+        ctx.fillRect(x, y + s * 0.4, s, s * 0.2);
     }
 
     // Render cities
@@ -895,15 +1106,15 @@ class Renderer {
         const offsetX = (width - gameState.map.width * scale) / 2;
         const offsetY = (height - gameState.map.height * scale) / 2;
 
-        // Draw terrain with classic minimap colors
+        // Draw terrain with classic Civ 1 minimap colors
         const minimapColors = {
-            'Ocean': '#1a3a5a',
-            'Grassland': '#2a5a2a',
-            'Plains': '#6a6a4a',
-            'Desert': '#8a7a4a',
-            'Hills': '#5a4a3a',
-            'Mountains': '#4a4a4a',
-            'Forest': '#1a4a1a'
+            'Ocean': '#0040a0',
+            'Grassland': '#00a800',
+            'Plains': '#c8b040',
+            'Desert': '#e8d858',
+            'Hills': '#987850',
+            'Mountains': '#808080',
+            'Forest': '#006800'
         };
 
         for (let y = 0; y < gameState.map.height; y++) {
