@@ -98,6 +98,7 @@ class Renderer {
         const range = this.getVisibleRange();
         const scaledTileSize = this.tileSize * this.camera.zoom;
 
+        // First pass: draw all terrain
         for (let y = range.startY; y < range.endY; y++) {
             for (let x = range.startX; x < range.endX; x++) {
                 const tile = gameState.getTile(x, y);
@@ -112,9 +113,33 @@ class Renderer {
 
                 // Draw terrain based on type
                 this.drawTerrain(tile.terrain, screen.x, screen.y, s, variation, x, y);
+            }
+        }
+
+        // Second pass: draw edge blending between different terrains
+        for (let y = range.startY; y < range.endY; y++) {
+            for (let x = range.startX; x < range.endX; x++) {
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+
+                const screen = this.worldToScreen(x, y);
+                const s = scaledTileSize;
+
+                this.drawTerrainEdgeBlend(tile, x, y, screen.x, screen.y, s);
+            }
+        }
+
+        // Third pass: draw grid and improvements
+        for (let y = range.startY; y < range.endY; y++) {
+            for (let x = range.startX; x < range.endX; x++) {
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+
+                const screen = this.worldToScreen(x, y);
+                const s = scaledTileSize;
 
                 // Draw grid lines (subtle)
-                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
                 this.ctx.lineWidth = 1;
                 this.ctx.strokeRect(screen.x, screen.y, s, s);
 
@@ -122,6 +147,74 @@ class Renderer {
                 if (tile.has_road) {
                     this.drawRoad(screen.x, screen.y, s);
                 }
+            }
+        }
+    }
+
+    // Draw edge blending between different terrain types
+    drawTerrainEdgeBlend(tile, tileX, tileY, screenX, screenY, size) {
+        const ctx = this.ctx;
+        const blendSize = size * 0.15; // Size of the blend gradient
+
+        // Get the base color for this terrain (for blending)
+        const terrainColors = {
+            'Ocean': 'rgba(30, 100, 180, 0.5)',
+            'Grassland': 'rgba(80, 160, 80, 0.5)',
+            'Plains': 'rgba(180, 160, 80, 0.5)',
+            'Desert': 'rgba(220, 200, 120, 0.5)',
+            'Hills': 'rgba(100, 140, 80, 0.5)',
+            'Mountains': 'rgba(120, 120, 120, 0.5)',
+            'Forest': 'rgba(40, 100, 40, 0.5)'
+        };
+
+        // Check each adjacent tile and draw blend if different
+        const directions = [
+            { dx: 0, dy: -1, edge: 'top' },
+            { dx: 0, dy: 1, edge: 'bottom' },
+            { dx: -1, dy: 0, edge: 'left' },
+            { dx: 1, dy: 0, edge: 'right' }
+        ];
+
+        for (const dir of directions) {
+            const adjTile = gameState.getTile(tileX + dir.dx, tileY + dir.dy);
+            if (!adjTile || adjTile.terrain === tile.terrain) continue;
+
+            const adjColor = terrainColors[adjTile.terrain] || 'rgba(128, 128, 128, 0.5)';
+
+            // Create gradient for this edge
+            let gradient;
+            switch (dir.edge) {
+                case 'top':
+                    gradient = ctx.createLinearGradient(screenX, screenY, screenX, screenY + blendSize);
+                    break;
+                case 'bottom':
+                    gradient = ctx.createLinearGradient(screenX, screenY + size, screenX, screenY + size - blendSize);
+                    break;
+                case 'left':
+                    gradient = ctx.createLinearGradient(screenX, screenY, screenX + blendSize, screenY);
+                    break;
+                case 'right':
+                    gradient = ctx.createLinearGradient(screenX + size, screenY, screenX + size - blendSize, screenY);
+                    break;
+            }
+
+            gradient.addColorStop(0, adjColor);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = gradient;
+            switch (dir.edge) {
+                case 'top':
+                    ctx.fillRect(screenX, screenY, size, blendSize);
+                    break;
+                case 'bottom':
+                    ctx.fillRect(screenX, screenY + size - blendSize, size, blendSize);
+                    break;
+                case 'left':
+                    ctx.fillRect(screenX, screenY, blendSize, size);
+                    break;
+                case 'right':
+                    ctx.fillRect(screenX + size - blendSize, screenY, blendSize, size);
+                    break;
             }
         }
     }
