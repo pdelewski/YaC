@@ -1337,10 +1337,10 @@ class Renderer {
 
                 const screen = this.worldToScreen(x, y);
 
-                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
                 this.ctx.fillRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
 
-                this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
                 this.ctx.lineWidth = 2;
                 this.ctx.strokeRect(screen.x, screen.y, scaledTileSize, scaledTileSize);
             }
