@@ -1784,8 +1784,8 @@ class Renderer {
 
         if (!tile) return;
 
-        // Build tooltip text
-        let tooltipText = tile.terrain;
+        // Build tooltip text with coordinates
+        let tooltipText = `(${tileX},${tileY}) ${tile.terrain}`;
 
         // Check for river (only use accurate point check, not tile.has_river which includes neighbors)
         if (this.tileHasRiver(tileX, tileY)) {
