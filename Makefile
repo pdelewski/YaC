@@ -66,4 +66,4 @@ help:
 	@echo "  make lint       - Lint code"
 	@echo "  make build-all  - Build for all platforms"
 	@echo ""
-	@echo "Server will be available at http://localhost:8080"
+	@echo "Server will be available at http://localhost:8888"

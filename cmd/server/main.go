@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// Command line flags
-	addr := flag.String("addr", ":8080", "HTTP server address")
+	addr := flag.String("addr", ":8888", "HTTP server address")
 	webDir := flag.String("web", "", "Path to web directory (default: ./web)")
 	flag.Parse()
 

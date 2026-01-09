@@ -3,12 +3,14 @@ class SpriteManager {
     constructor() {
         this.sprites = {};
         this.terrain = {};
+        this.transitions = {};
         this.loaded = false;
         this.terrainLoaded = false;
+        this.transitionsLoaded = false;
         this.loadPromise = null;
     }
 
-    // Load all sprites (units and terrain)
+    // Load all sprites (units, terrain, and transitions)
     loadAll() {
         if (this.loadPromise) {
             return this.loadPromise;
@@ -16,6 +18,35 @@ class SpriteManager {
 
         const unitTypes = ['settler', 'warrior', 'phalanx', 'archer', 'horseman', 'catapult'];
         const terrainTypes = ['ocean', 'grassland', 'plains', 'desert', 'hills', 'mountains', 'forest'];
+        const transitionTypes = [
+            // Ocean transitions
+            'ocean_grassland_h',
+            'ocean_plains_h',
+            'ocean_desert_h',
+            'ocean_forest_h',
+            'ocean_hills_h',
+            'ocean_mountains_h',
+            // Grassland transitions
+            'grassland_plains_h',
+            'grassland_desert_h',
+            'grassland_hills_h',
+            'grassland_mountains_h',
+            'grassland_forest_h',
+            // Plains transitions
+            'plains_desert_h',
+            'plains_hills_h',
+            'plains_mountains_h',
+            'plains_forest_h',
+            // Desert transitions
+            'desert_hills_h',
+            'desert_mountains_h',
+            'desert_forest_h',
+            // Hills transitions
+            'hills_mountains_h',
+            'hills_forest_h',
+            // Forest transitions
+            'forest_mountains_h'
+        ];
         const loadPromises = [];
 
         for (const unitType of unitTypes) {
@@ -26,10 +57,15 @@ class SpriteManager {
             loadPromises.push(this.loadTerrain(terrainType, `assets/terrain/${terrainType}.png`));
         }
 
+        for (const transType of transitionTypes) {
+            loadPromises.push(this.loadTransition(transType, `assets/terrain/transitions/${transType}.png`));
+        }
+
         this.loadPromise = Promise.all(loadPromises).then(() => {
             this.loaded = true;
             this.terrainLoaded = true;
-            console.log('All sprites and terrain loaded successfully');
+            this.transitionsLoaded = true;
+            console.log('All sprites, terrain and transitions loaded successfully');
         }).catch(err => {
             console.warn('Some assets failed to load, using fallback rendering:', err);
         });
@@ -71,6 +107,23 @@ class SpriteManager {
         });
     }
 
+    // Load a transition tile
+    loadTransition(name, path) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                this.transitions[name] = img;
+                console.log(`Loaded transition: ${name}`);
+                resolve(img);
+            };
+            img.onerror = (err) => {
+                console.warn(`Failed to load transition: ${name}`);
+                reject(err);
+            };
+            img.src = path;
+        });
+    }
+
     // Get a sprite by unit type name
     getSprite(unitType) {
         const key = unitType.toLowerCase();
@@ -83,6 +136,27 @@ class SpriteManager {
         return this.terrain[key] || null;
     }
 
+    // Get a transition tile for two adjacent terrain types
+    // Returns { tile, flipH, flipV } or null
+    getTransition(terrain1, terrain2, direction) {
+        const t1 = terrain1.toLowerCase();
+        const t2 = terrain2.toLowerCase();
+
+        // Try both orderings
+        let key = `${t1}_${t2}_h`;
+        let flip = false;
+
+        if (!this.transitions[key]) {
+            key = `${t2}_${t1}_h`;
+            flip = true;
+        }
+
+        if (this.transitions[key]) {
+            return { tile: this.transitions[key], flip: flip };
+        }
+        return null;
+    }
+
     // Check if sprites are ready
     isReady() {
         return this.loaded;
@@ -91,6 +165,11 @@ class SpriteManager {
     // Check if terrain is ready
     isTerrainReady() {
         return this.terrainLoaded;
+    }
+
+    // Check if transitions are ready
+    isTransitionsReady() {
+        return this.transitionsLoaded;
     }
 }
 
