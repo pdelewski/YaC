@@ -1,5 +1,8 @@
 // Main application entry point
 
+// Track if this is the first game state load
+let isFirstLoad = true;
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Civilization game initializing...');
@@ -59,8 +62,8 @@ function setupWebSocketCallbacks() {
 
         gameState.updateFromServer(data);
 
-        // Center camera on first unit if first load and set max zoom
-        if (gameState.map) {
+        // Center camera on first unit only on first load
+        if (isFirstLoad && gameState.map) {
             const myPlayer = gameState.getMyPlayer();
             console.log('My player:', myPlayer ? myPlayer.name : 'not found');
             console.log('My units:', myPlayer ? myPlayer.units.length : 0);
@@ -71,6 +74,7 @@ function setupWebSocketCallbacks() {
                 renderer.camera.zoom = Config.CAMERA.MAX_ZOOM;
                 renderer.centerOn(firstUnit.x, firstUnit.y);
             }
+            isFirstLoad = false;
         }
 
         ui.updateTopBar();

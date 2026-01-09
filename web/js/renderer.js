@@ -816,6 +816,33 @@ class Renderer {
                         scaledTileSize * 0.9
                     );
                 }
+
+                // Blinking highlight for selected unit
+                if (gameState.selectedUnit && unit.id === gameState.selectedUnit.id) {
+                    if (Math.floor(Date.now() / 400) % 2 === 0) {
+                        this.ctx.strokeStyle = '#fff';
+                        this.ctx.lineWidth = 3;
+                        this.ctx.strokeRect(
+                            screen.x + scaledTileSize * 0.02,
+                            screen.y + scaledTileSize * 0.02,
+                            scaledTileSize * 0.96,
+                            scaledTileSize * 0.96
+                        );
+                    }
+                }
+                // Blinking border for units that can still act (my units with movement left)
+                else if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified) {
+                    if (Math.floor(Date.now() / 600) % 2 === 0) {
+                        this.ctx.strokeStyle = '#ffff00';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.strokeRect(
+                            screen.x + scaledTileSize * 0.02,
+                            screen.y + scaledTileSize * 0.02,
+                            scaledTileSize * 0.96,
+                            scaledTileSize * 0.96
+                        );
+                    }
+                }
             }
         }
     }
