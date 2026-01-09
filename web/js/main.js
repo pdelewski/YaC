@@ -5,7 +5,7 @@ let isFirstLoad = true;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Civilization game initializing...');
+    console.log('Yet Another Civilization game initializing...');
 
     // Initialize sprite manager and start loading sprites
     spriteManager = new SpriteManager();
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderer.resize();
     });
 
-    console.log('Civilization game initialized');
+    console.log('Yet Another Civilization game initialized');
 });
 
 // Additional resize trigger when window fully loads (images, fonts, etc.)
