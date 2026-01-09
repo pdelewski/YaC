@@ -463,9 +463,28 @@ class UI {
     updateModeButtons() {
         const moveBtn = document.getElementById('btn-move');
         const attackBtn = document.getElementById('btn-attack');
+        const fortifyBtn = document.getElementById('btn-fortify');
+        const foundCityBtn = document.getElementById('btn-found-city');
+        const buildRoadBtn = document.getElementById('btn-build-road');
+        const skipBtn = document.getElementById('btn-skip');
 
         moveBtn.classList.toggle('active', gameState.mode === 'move');
         attackBtn.classList.toggle('active', gameState.mode === 'attack');
+
+        // Disable buttons if unit has no movement left
+        const unit = gameState.selectedUnit;
+        const hasMovement = unit && unit.movement_left > 0;
+        const canAct = hasMovement && !unit.is_fortified;
+
+        moveBtn.disabled = !canAct;
+        attackBtn.disabled = !canAct;
+        fortifyBtn.disabled = !canAct || unit.can_found_city; // Settlers can't fortify
+        skipBtn.disabled = !hasMovement;
+
+        if (unit && unit.can_found_city) {
+            foundCityBtn.disabled = !canAct || !gameState.canFoundCity();
+            buildRoadBtn.disabled = !canAct;
+        }
     }
 
     showCityModal(city) {
