@@ -44,14 +44,24 @@ class UI {
         // Unit action buttons
         document.getElementById('btn-move').addEventListener('click', () => {
             if (gameState.selectedUnit && gameState.canUnitMove(gameState.selectedUnit)) {
-                gameState.setMode('move');
+                // Toggle mode - if already in move mode, go back to select mode
+                if (gameState.mode === 'move') {
+                    gameState.setMode('select');
+                } else {
+                    gameState.setMode('move');
+                }
                 this.updateModeButtons();
             }
         });
 
         document.getElementById('btn-attack').addEventListener('click', () => {
             if (gameState.selectedUnit && gameState.canUnitMove(gameState.selectedUnit)) {
-                gameState.setMode('attack');
+                // Toggle mode - if already in attack mode, go back to select mode
+                if (gameState.mode === 'attack') {
+                    gameState.setMode('select');
+                } else {
+                    gameState.setMode('attack');
+                }
                 this.updateModeButtons();
             }
         });
