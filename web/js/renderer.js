@@ -58,6 +58,7 @@ class Renderer {
         this.renderCities();
         this.renderUnits();
         this.renderSelection();
+        this.renderHoverTooltip();
         this.renderMinimap();
     }
 
@@ -1527,6 +1528,87 @@ class Renderer {
                 scaledTileSize - 4
             );
         }
+    }
+
+    // Check if a tile has a river passing through it
+    tileHasRiver(tileX, tileY) {
+        if (!gameState.map || !gameState.map.rivers) return false;
+
+        for (const river of gameState.map.rivers) {
+            if (!river.points) continue;
+            for (const point of river.points) {
+                // Check if river point is within this tile (using floor to get tile coords)
+                if (Math.floor(point.x) === tileX && Math.floor(point.y) === tileY) {
+                    return true;
+                }
+                // Also check if river passes through tile (within 0.5 of tile center)
+                const centerX = tileX + 0.5;
+                const centerY = tileY + 0.5;
+                const dist = Math.sqrt((point.x - centerX) ** 2 + (point.y - centerY) ** 2);
+                if (dist < 0.7) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // Render hover tooltip showing tile info
+    renderHoverTooltip() {
+        if (!inputHandler || inputHandler.hoverTileX < 0 || inputHandler.hoverTileY < 0) {
+            return;
+        }
+
+        const tileX = inputHandler.hoverTileX;
+        const tileY = inputHandler.hoverTileY;
+        const tile = gameState.getTile(tileX, tileY);
+
+        if (!tile) return;
+
+        // Build tooltip text
+        let tooltipText = tile.terrain;
+
+        // Check for river
+        if (tile.has_river || this.tileHasRiver(tileX, tileY)) {
+            tooltipText += ' + River';
+        }
+
+        // Check for resource
+        if (tile.resource && tile.resource !== '') {
+            tooltipText += ' + ' + tile.resource;
+        }
+
+        // Get screen position of the tile
+        const screen = this.worldToScreen(tileX, tileY);
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        // Position tooltip at the center of the tile
+        const tooltipX = screen.x + scaledTileSize / 2;
+        const tooltipY = screen.y + scaledTileSize / 2;
+
+        const ctx = this.ctx;
+
+        // Set up text style
+        ctx.font = `bold ${Math.max(12, scaledTileSize * 0.25)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Measure text for background
+        const textWidth = ctx.measureText(tooltipText).width;
+        const padding = 4;
+
+        // Draw semi-transparent background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(
+            tooltipX - textWidth / 2 - padding,
+            tooltipY - 8 - padding,
+            textWidth + padding * 2,
+            16 + padding * 2
+        );
+
+        // Draw text with slight shadow for readability
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillText(tooltipText, tooltipX, tooltipY);
     }
 
     // Render movement range overlay

@@ -6,6 +6,12 @@ class InputHandler {
         this.lastMouseX = 0;
         this.lastMouseY = 0;
 
+        // Hover state for tooltip
+        this.hoverTileX = -1;
+        this.hoverTileY = -1;
+        this.hoverScreenX = 0;
+        this.hoverScreenY = 0;
+
         this.setupEventListeners();
     }
 
@@ -16,6 +22,7 @@ class InputHandler {
         this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
         this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
         this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        this.canvas.addEventListener('mouseleave', () => this.onMouseLeave());
 
         // Keyboard events
         document.addEventListener('keydown', (e) => this.onKeyDown(e));
@@ -34,6 +41,26 @@ class InputHandler {
     }
 
     onMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+
+        // Update hover position for tooltip
+        this.hoverScreenX = screenX;
+        this.hoverScreenY = screenY;
+
+        if (renderer && gameState.map) {
+            const world = renderer.screenToWorld(screenX, screenY);
+            if (world.x >= 0 && world.x < gameState.map.width &&
+                world.y >= 0 && world.y < gameState.map.height) {
+                this.hoverTileX = world.x;
+                this.hoverTileY = world.y;
+            } else {
+                this.hoverTileX = -1;
+                this.hoverTileY = -1;
+            }
+        }
+
         if (this.isDragging) {
             const dx = this.lastMouseX - e.clientX;
             const dy = this.lastMouseY - e.clientY;
@@ -47,6 +74,11 @@ class InputHandler {
         if (e.button === 2) {
             this.isDragging = false;
         }
+    }
+
+    onMouseLeave() {
+        this.hoverTileX = -1;
+        this.hoverTileY = -1;
     }
 
     onWheel(e) {
