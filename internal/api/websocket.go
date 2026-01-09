@@ -95,6 +95,18 @@ func (h *Hub) Run() {
 	}
 }
 
+// Close closes all client connections
+func (h *Hub) Close() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for client := range h.clients {
+		client.conn.Close()
+		close(client.send)
+		delete(h.clients, client)
+	}
+}
+
 // sendGameState sends the full game state to a client
 func (h *Hub) sendGameState(client *Client) {
 	// Log player units before conversion

@@ -270,3 +270,191 @@ func CityToDTO(c *game.City) CityDTO {
 
 	return dto
 }
+
+// ============ Reverse conversions (DTO to Game) ============
+
+// TerrainFromString converts terrain string to TerrainType
+func TerrainFromString(s string) game.TerrainType {
+	switch s {
+	case "Ocean":
+		return game.TerrainOcean
+	case "Grassland":
+		return game.TerrainGrassland
+	case "Plains":
+		return game.TerrainPlains
+	case "Desert":
+		return game.TerrainDesert
+	case "Hills":
+		return game.TerrainHills
+	case "Mountains":
+		return game.TerrainMountains
+	case "Forest":
+		return game.TerrainForest
+	default:
+		return game.TerrainOcean
+	}
+}
+
+// UnitTypeFromString converts unit type string to UnitType
+func UnitTypeFromString(s string) game.UnitType {
+	switch s {
+	case "Settler":
+		return game.UnitSettler
+	case "Warrior":
+		return game.UnitWarrior
+	case "Phalanx":
+		return game.UnitPhalanx
+	case "Archer":
+		return game.UnitArcher
+	case "Horseman":
+		return game.UnitHorseman
+	case "Catapult":
+		return game.UnitCatapult
+	default:
+		return game.UnitWarrior
+	}
+}
+
+// PhaseFromString converts phase string to GamePhase
+func PhaseFromString(s string) game.GamePhase {
+	switch s {
+	case "setup":
+		return game.PhaseSetup
+	case "player_turn":
+		return game.PhasePlayerTurn
+	case "ai_turn":
+		return game.PhaseAITurn
+	case "game_over":
+		return game.PhaseGameOver
+	default:
+		return game.PhasePlayerTurn
+	}
+}
+
+// DTOToGameState converts a GameStateMessage to a GameState
+func DTOToGameState(dto *GameStateMessage) *game.GameState {
+	g := &game.GameState{
+		ID:          dto.ID,
+		CurrentTurn: dto.Turn,
+		Phase:       PhaseFromString(dto.Phase),
+	}
+
+	// Convert map
+	g.Map = DTOToMap(&dto.Map)
+
+	// Convert players
+	g.Players = make([]*game.Player, len(dto.Players))
+	for i, p := range dto.Players {
+		g.Players[i] = DTOToPlayer(&p)
+		// Find current player index
+		if p.ID == dto.CurrentPlayer {
+			g.CurrentPlayer = i
+		}
+	}
+
+	return g
+}
+
+// DTOToMap converts a MapDTO to a GameMap
+func DTOToMap(dto *MapDTO) *game.GameMap {
+	gm := game.NewGameMap(dto.Width, dto.Height)
+
+	for _, t := range dto.Tiles {
+		tile := gm.GetTile(t.X, t.Y)
+		if tile != nil {
+			tile.Terrain = TerrainFromString(t.Terrain)
+			tile.HasRoad = t.HasRoad
+			tile.HasMine = t.HasMine
+			tile.HasIrrigation = t.HasIrrigation
+		}
+	}
+
+	return gm
+}
+
+// DTOToPlayer converts a PlayerDTO to a Player
+func DTOToPlayer(dto *PlayerDTO) *game.Player {
+	playerType := game.PlayerAI
+	if dto.IsHuman {
+		playerType = game.PlayerHuman
+	}
+
+	p := &game.Player{
+		ID:      dto.ID,
+		Name:    dto.Name,
+		Color:   dto.Color,
+		Type:    playerType,
+		IsAlive: dto.IsAlive,
+		Gold:    dto.Gold,
+		Units:   make([]*game.Unit, len(dto.Units)),
+		Cities:  make([]*game.City, len(dto.Cities)),
+	}
+
+	for i, u := range dto.Units {
+		p.Units[i] = DTOToUnit(&u)
+	}
+
+	for i, c := range dto.Cities {
+		p.Cities[i] = DTOToCity(&c)
+	}
+
+	return p
+}
+
+// DTOToUnit converts a UnitDTO to a Unit
+func DTOToUnit(dto *UnitDTO) *game.Unit {
+	return &game.Unit{
+		ID:           dto.ID,
+		Type:         UnitTypeFromString(dto.Type),
+		OwnerID:      dto.OwnerID,
+		X:            dto.X,
+		Y:            dto.Y,
+		MovementLeft: dto.MovementLeft,
+		Health:       dto.Health,
+		IsVeteran:    dto.IsVeteran,
+		IsFortified:  dto.IsFortified,
+	}
+}
+
+// DTOToCity converts a CityDTO to a City
+func DTOToCity(dto *CityDTO) *game.City {
+	c := &game.City{
+		ID:         dto.ID,
+		Name:       dto.Name,
+		OwnerID:    dto.OwnerID,
+		X:          dto.X,
+		Y:          dto.Y,
+		Population: dto.Population,
+		FoodStore:  dto.FoodStore,
+		Production: dto.Production,
+		Buildings:  make(map[game.BuildingType]bool),
+	}
+
+	// Convert buildings
+	for _, b := range dto.Buildings {
+		bt := BuildingTypeFromString(b)
+		if bt != game.BuildingNone {
+			c.Buildings[bt] = true
+		}
+	}
+
+	return c
+}
+
+// BuildingTypeFromString converts building string to BuildingType
+func BuildingTypeFromString(s string) game.BuildingType {
+	switch s {
+	case "Barracks":
+		return game.BuildingBarracks
+	case "Granary":
+		return game.BuildingGranary
+	case "Walls":
+		return game.BuildingWalls
+	case "Marketplace":
+		return game.BuildingMarketplace
+	case "Library":
+		return game.BuildingLibrary
+	default:
+		return game.BuildingNone
+	}
+}

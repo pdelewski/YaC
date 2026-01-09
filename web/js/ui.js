@@ -235,6 +235,10 @@ class UI {
         .then(data => {
             if (data.success) {
                 document.getElementById('load-modal').classList.add('hidden');
+                // Reset first load flag so camera centers on units
+                isFirstLoad = true;
+                // Disconnect and reconnect websocket
+                gameSocket.disconnect();
                 gameSocket.connect();
                 this.showGameScreen();
             } else {

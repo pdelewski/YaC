@@ -252,11 +252,58 @@ func (s *Server) handleLoadGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Implement full game state restoration
+	// Parse request to get filename
+	var req struct {
+		Filename string `json:"filename"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Invalid request",
+		})
+		return
+	}
+
+	// Read save file
+	savePath := filepath.Join(s.savesPath, req.Filename)
+	data, err := os.ReadFile(savePath)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to read save file: %v", err),
+		})
+		return
+	}
+
+	// Parse save data
+	var saveData GameStateMessage
+	if err := json.Unmarshal(data, &saveData); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to parse save file: %v", err),
+		})
+		return
+	}
+
+	// Convert DTO to game state
+	s.game = DTOToGameState(&saveData)
+
+	// Create new hub for WebSocket connections
+	if s.hub != nil {
+		// Close existing hub connections
+		s.hub.Close()
+	}
+	s.hub = NewHub(s.game)
+	go s.hub.Run()
+
+	log.Printf("Game loaded from: %s", savePath)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": false,
-		"error":   "Load game is not yet implemented",
+		"success": true,
 	})
 }
 
