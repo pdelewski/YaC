@@ -123,6 +123,14 @@ class UI {
             }
         });
 
+        document.getElementById('menu-view-units').addEventListener('click', () => {
+            this.showUnitsGallery();
+        });
+
+        document.getElementById('units-modal-close').addEventListener('click', () => {
+            document.getElementById('units-modal').classList.add('hidden');
+        });
+
         // Toolbar handlers
         document.getElementById('tb-new').addEventListener('click', () => {
             if (confirm('Start a new game? Current progress will be lost.')) {
@@ -249,6 +257,29 @@ class UI {
             console.error('Error loading game:', error);
             alert('Failed to load game.');
         });
+    }
+
+    // Show units gallery modal
+    showUnitsGallery() {
+        const modal = document.getElementById('units-modal');
+        const gallery = document.getElementById('units-gallery');
+
+        // List of all available units
+        const units = [
+            'settler', 'warrior', 'phalanx', 'archer', 'horseman', 'catapult',
+            'rifleman', 'armor', 'artillery',
+            'fighter', 'bomber',
+            'submarine', 'cruiser', 'battleship', 'carrier'
+        ];
+
+        gallery.innerHTML = units.map(unit => `
+            <div class="unit-card">
+                <img src="assets/units/${unit}.png" alt="${unit}">
+                <span class="unit-name">${unit}</span>
+            </div>
+        `).join('');
+
+        modal.classList.remove('hidden');
     }
 
     startGame() {

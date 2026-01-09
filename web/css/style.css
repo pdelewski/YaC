@@ -691,6 +691,46 @@ body {
     padding: 1rem;
 }
 
+/* ============ UNITS GALLERY MODAL ============ */
+.modal-wide {
+    max-width: 700px;
+    width: 90%;
+}
+
+#units-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.unit-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.8rem;
+    background: var(--panel-dark);
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light) var(--panel-border-light) var(--panel-border-dark);
+}
+
+.unit-card img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    margin-bottom: 0.5rem;
+}
+
+.unit-card .unit-name {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    text-transform: capitalize;
+    text-align: center;
+}
+
 /* ============ SCROLLBAR ============ */
 ::-webkit-scrollbar {
     width: 12px;
