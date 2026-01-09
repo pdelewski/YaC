@@ -549,65 +549,158 @@ func (g *Generator) smoothCoastlines(gm *game.GameMap) {
 	}
 }
 
-// generateRivers creates rivers as smooth paths flowing from highlands to ocean
-func (g *Generator) generateRivers(gm *game.GameMap) {
-	log.Println("=== GENERATING RIVERS ===")
+// findContinents identifies all connected land masses using flood fill
+func (g *Generator) findContinents(gm *game.GameMap) [][][2]int {
+	visited := make([][]bool, g.config.Height)
+	for y := 0; y < g.config.Height; y++ {
+		visited[y] = make([]bool, g.config.Width)
+	}
 
-	// Find potential river sources (mountains preferred, then hills)
-	mountainSources := make([][2]int, 0)
-	hillSources := make([][2]int, 0)
+	continents := make([][][2]int, 0)
 
 	for y := 0; y < g.config.Height; y++ {
 		for x := 0; x < g.config.Width; x++ {
-			tile := gm.GetTile(x, y)
-			if tile == nil {
+			if visited[y][x] {
 				continue
 			}
-			if tile.Terrain == game.TerrainMountains {
-				mountainSources = append(mountainSources, [2]int{x, y})
-			} else if tile.Terrain == game.TerrainHills {
-				hillSources = append(hillSources, [2]int{x, y})
+			tile := gm.GetTile(x, y)
+			if tile == nil || tile.Terrain == game.TerrainOcean {
+				visited[y][x] = true
+				continue
+			}
+
+			// Found unvisited land - flood fill to find continent
+			continent := make([][2]int, 0)
+			queue := [][2]int{{x, y}}
+			visited[y][x] = true
+
+			for len(queue) > 0 {
+				curr := queue[0]
+				queue = queue[1:]
+				continent = append(continent, curr)
+
+				// Check 4 cardinal directions
+				dirs := [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
+				for _, d := range dirs {
+					nx, ny := curr[0]+d[0], curr[1]+d[1]
+					if nx < 0 || nx >= g.config.Width || ny < 0 || ny >= g.config.Height {
+						continue
+					}
+					if visited[ny][nx] {
+						continue
+					}
+					nextTile := gm.GetTile(nx, ny)
+					if nextTile == nil || nextTile.Terrain == game.TerrainOcean {
+						visited[ny][nx] = true
+						continue
+					}
+					visited[ny][nx] = true
+					queue = append(queue, [2]int{nx, ny})
+				}
+			}
+
+			if len(continent) >= 10 { // Only count significant land masses
+				continents = append(continents, continent)
 			}
 		}
 	}
 
-	// Prefer mountains as sources, fall back to hills
-	sources := mountainSources
-	if len(sources) < 5 {
-		sources = append(sources, hillSources...)
-	}
+	return continents
+}
 
-	log.Printf("Found %d potential river sources", len(sources))
+// generateRivers creates rivers as smooth paths flowing from highlands to ocean
+func (g *Generator) generateRivers(gm *game.GameMap) {
+	log.Println("=== GENERATING RIVERS ===")
 
-	if len(sources) == 0 {
-		return
-	}
+	// Find all continents
+	continents := g.findContinents(gm)
+	log.Printf("Found %d continents/islands", len(continents))
 
-	// Generate fewer but longer rivers (3-8)
-	numRivers := 3 + g.rng.Intn(6)
-	if numRivers > len(sources) {
-		numRivers = len(sources)
-	}
-
-	log.Printf("Generating %d rivers", numRivers)
-
-	// Shuffle sources
-	g.rng.Shuffle(len(sources), func(i, j int) {
-		sources[i], sources[j] = sources[j], sources[i]
-	})
-
-	// Generate each river as a path
 	gm.Rivers = make([]game.River, 0)
-	for i := 0; i < numRivers; i++ {
-		river := g.traceRiverPath(gm, sources[i][0], sources[i][1])
-		if len(river.Points) > 3 { // Only keep rivers with enough points
-			// Add delta branches if river is long enough
-			if len(river.Points) > 8 {
-				g.addRiverDelta(gm, &river)
+	usedSources := make(map[[2]int]bool)
+
+	// For each continent, ensure at least one river
+	for ci, continent := range continents {
+		// Find sources on this continent (mountains preferred, then hills, then any high ground)
+		mountainSources := make([][2]int, 0)
+		hillSources := make([][2]int, 0)
+		anySources := make([][2]int, 0)
+
+		continentTiles := make(map[[2]int]bool)
+		for _, pos := range continent {
+			continentTiles[pos] = true
+		}
+
+		for _, pos := range continent {
+			tile := gm.GetTile(pos[0], pos[1])
+			if tile == nil {
+				continue
 			}
-			gm.Rivers = append(gm.Rivers, river)
-			// Mark tiles near the river
-			g.markRiverTiles(gm, river)
+			if tile.Terrain == game.TerrainMountains {
+				mountainSources = append(mountainSources, pos)
+			} else if tile.Terrain == game.TerrainHills {
+				hillSources = append(hillSources, pos)
+			} else if tile.Terrain == game.TerrainForest || tile.Terrain == game.TerrainGrassland {
+				anySources = append(anySources, pos)
+			}
+		}
+
+		// Choose best available sources for this continent
+		sources := mountainSources
+		if len(sources) == 0 {
+			sources = hillSources
+		}
+		if len(sources) == 0 {
+			sources = anySources
+		}
+
+		if len(sources) == 0 {
+			log.Printf("Continent %d: no suitable river sources found", ci)
+			continue
+		}
+
+		// Shuffle sources for this continent
+		g.rng.Shuffle(len(sources), func(i, j int) {
+			sources[i], sources[j] = sources[j], sources[i]
+		})
+
+		// Generate at least 1 river, more for larger continents
+		numRivers := 1
+		if len(continent) > 500 {
+			numRivers = 2 + g.rng.Intn(2)
+		} else if len(continent) > 200 {
+			numRivers = 1 + g.rng.Intn(2)
+		}
+		if numRivers > len(sources) {
+			numRivers = len(sources)
+		}
+
+		log.Printf("Continent %d: %d tiles, generating %d river(s) from %d sources", ci, len(continent), numRivers, len(sources))
+
+		riversCreated := 0
+		for _, src := range sources {
+			if riversCreated >= numRivers {
+				break
+			}
+			if usedSources[src] {
+				continue
+			}
+
+			river := g.traceRiverPath(gm, src[0], src[1])
+			if len(river.Points) > 3 {
+				if len(river.Points) > 8 {
+					g.addRiverDelta(gm, &river)
+				}
+				gm.Rivers = append(gm.Rivers, river)
+				g.markRiverTiles(gm, river)
+				usedSources[src] = true
+				riversCreated++
+				log.Printf("  Created river with %d points", len(river.Points))
+			}
+		}
+
+		if riversCreated == 0 {
+			log.Printf("  Warning: Could not create any rivers for continent %d", ci)
 		}
 	}
 
