@@ -1396,17 +1396,37 @@ class Renderer {
             }
         }
 
-        // Draw units as small dots
+        // Draw units as visible dots with white outline
         for (const player of gameState.players) {
             if (player.units) {
                 for (const unit of player.units) {
-                    ctx.fillStyle = player.color;
+                    const unitX = offsetX + unit.x * scale;
+                    const unitY = offsetY + unit.y * scale;
+                    const unitSize = Math.max(4, scale + 2);
+
+                    // White outline for visibility
+                    ctx.fillStyle = '#fff';
                     ctx.fillRect(
-                        offsetX + unit.x * scale,
-                        offsetY + unit.y * scale,
-                        Math.max(2, scale),
-                        Math.max(2, scale)
+                        unitX - 1,
+                        unitY - 1,
+                        unitSize + 2,
+                        unitSize + 2
                     );
+
+                    // Player color fill
+                    ctx.fillStyle = player.color;
+                    ctx.fillRect(unitX, unitY, unitSize, unitSize);
+
+                    // Blinking effect for current player's units
+                    if (player.id === gameState.myPlayerId && Math.floor(Date.now() / 500) % 2 === 0) {
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(
+                            unitX + 1,
+                            unitY + 1,
+                            unitSize - 2,
+                            unitSize - 2
+                        );
+                    }
                 }
             }
         }
