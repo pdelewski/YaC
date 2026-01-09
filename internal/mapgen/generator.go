@@ -879,8 +879,9 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 	x, y := startX, startY
 	maxLength := 150
 
-	// Direction accumulator for smooth curves
+	// Direction accumulator for smooth curves (higher values = more inertia)
 	dirX, dirY := 0.0, 0.0
+	prevDirX, prevDirY := 0.0, 0.0
 
 	for i := 0; i < maxLength; i++ {
 		visited[[2]int{x, y}] = true
@@ -928,11 +929,24 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 					score = 2
 				}
 				// Randomness for meandering
-				score += g.rng.Float64() * 3
+				score += g.rng.Float64() * 2
 
-				// Momentum - prefer continuing roughly same direction
+				// Strong momentum - prefer continuing roughly same direction
 				dot := float64(d[0])*dirX + float64(d[1])*dirY
-				score += dot * 2
+				score += dot * 4
+
+				// Penalize sharp turns (reverse direction)
+				if i > 0 {
+					reverseDot := float64(d[0])*(-prevDirX) + float64(d[1])*(-prevDirY)
+					if reverseDot > 0.5 {
+						score -= reverseDot * 8 // Heavy penalty for going backwards
+					}
+				}
+
+				// Prefer diagonal moves for smoother curves
+				if d[0] != 0 && d[1] != 0 {
+					score += 0.5
+				}
 			}
 
 			if score > bestScore {
@@ -945,11 +959,18 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 			break
 		}
 
-		// Update direction accumulator (smoothed)
+		// Update direction accumulators with high momentum for smoother curves
 		newDirX := float64(bestX - x)
 		newDirY := float64(bestY - y)
-		dirX = dirX*0.6 + newDirX*0.4
-		dirY = dirY*0.6 + newDirY*0.4
+		// Normalize diagonal directions
+		dirLen := math.Sqrt(newDirX*newDirX + newDirY*newDirY)
+		if dirLen > 0 {
+			newDirX /= dirLen
+			newDirY /= dirLen
+		}
+		prevDirX, prevDirY = dirX, dirY
+		dirX = dirX*0.75 + newDirX*0.25 // Higher momentum = smoother turns
+		dirY = dirY*0.75 + newDirY*0.25
 
 		nextTile := gm.GetTile(bestX, bestY)
 		if nextTile != nil && nextTile.Terrain == game.TerrainOcean {
@@ -1043,7 +1064,69 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 		}
 	}
 
+	// Apply smoothing pass to reduce sharp angles
+	river.Points = g.smoothRiverPath(river.Points)
+
 	return river
+}
+
+// smoothRiverPath uses Chaikin curve subdivision to spread turns over larger distances
+func (g *Generator) smoothRiverPath(points []game.RiverPoint) []game.RiverPoint {
+	if len(points) < 3 {
+		return points
+	}
+
+	// Apply Chaikin subdivision multiple times for smoother curves
+	// Each pass replaces sharp corners with gentler curves spread over more distance
+	result := points
+	for pass := 0; pass < 3; pass++ {
+		result = g.chaikinSubdivide(result)
+	}
+
+	return result
+}
+
+// chaikinSubdivide performs one pass of Chaikin curve subdivision
+// This replaces each segment with two new points at 25% and 75% along the segment
+// The result is that sharp corners become smooth curves spread over distance
+func (g *Generator) chaikinSubdivide(points []game.RiverPoint) []game.RiverPoint {
+	if len(points) < 2 {
+		return points
+	}
+
+	// Keep first point fixed (river source)
+	smoothed := make([]game.RiverPoint, 0, len(points)*2)
+	smoothed = append(smoothed, points[0])
+
+	for i := 0; i < len(points)-1; i++ {
+		p0 := points[i]
+		p1 := points[i+1]
+
+		// For the last segment, keep the end point fixed (river mouth)
+		if i == len(points)-2 {
+			// Add point at 25% from p0 towards p1
+			q := game.RiverPoint{
+				X: p0.X + (p1.X-p0.X)*0.25,
+				Y: p0.Y + (p1.Y-p0.Y)*0.25,
+			}
+			smoothed = append(smoothed, q)
+			smoothed = append(smoothed, p1) // Keep end point
+		} else {
+			// Add point at 25% from p0 towards p1
+			q := game.RiverPoint{
+				X: p0.X + (p1.X-p0.X)*0.25,
+				Y: p0.Y + (p1.Y-p0.Y)*0.25,
+			}
+			// Add point at 75% from p0 towards p1
+			r := game.RiverPoint{
+				X: p0.X + (p1.X-p0.X)*0.75,
+				Y: p0.Y + (p1.Y-p0.Y)*0.75,
+			}
+			smoothed = append(smoothed, q, r)
+		}
+	}
+
+	return smoothed
 }
 
 // markRiverTiles marks tiles that are adjacent to a river
