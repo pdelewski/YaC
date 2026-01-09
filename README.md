@@ -25,28 +25,18 @@ A web-based, single-player strategy game inspired by Civilization 1 (1991), buil
 - Go 1.21 or later
 - Modern web browser (Chrome, Firefox, Safari, Edge)
 
-## Building
+## Building & Running
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd YaC
+cd civilization
 
 # Build the server
-go build -o server ./cmd/server
+make
 
-# Or simply run without building
-go run ./cmd/server
-```
-
-## Running
-
-```bash
-# Start the server
-./server
-
-# Or run directly
-go run ./cmd/server
+# Run the server
+make run
 ```
 
 The server starts on `http://localhost:8080` by default.
