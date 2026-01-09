@@ -383,6 +383,11 @@ func (a *BuildRoadAction) Validate(g *GameState, playerID string) error {
 		return errors.New("only settlers can build roads")
 	}
 
+	// Must have movement left
+	if unit.MovementLeft <= 0 {
+		return ErrNoMovementLeft
+	}
+
 	// Check if there's already a road here
 	tile := g.Map.GetTile(unit.X, unit.Y)
 	if tile == nil {
