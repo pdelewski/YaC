@@ -4,9 +4,12 @@ import (
 	"civilization/internal/game"
 	"civilization/internal/mapgen"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
+	"time"
 )
 
 // Server handles HTTP requests and WebSocket connections
@@ -14,12 +17,20 @@ type Server struct {
 	hub        *Hub
 	game       *game.GameState
 	staticPath string
+	savesPath  string
 }
 
 // NewServer creates a new API server
 func NewServer(staticPath string) *Server {
+	// Create saves directory relative to working directory
+	savesPath := "saves"
+	if err := os.MkdirAll(savesPath, 0755); err != nil {
+		log.Printf("Warning: could not create saves directory: %v", err)
+	}
+
 	return &Server{
 		staticPath: staticPath,
+		savesPath:  savesPath,
 	}
 }
 
@@ -57,6 +68,7 @@ func (s *Server) SetupRoutes() http.Handler {
 	mux.HandleFunc("/api/game", s.handleGetGame)
 	mux.HandleFunc("/api/game/save", s.handleSaveGame)
 	mux.HandleFunc("/api/game/load", s.handleLoadGame)
+	mux.HandleFunc("/api/game/saves", s.handleListSaves)
 
 	// WebSocket
 	mux.HandleFunc("/ws", s.handleWebSocket)
@@ -134,7 +146,7 @@ func (s *Server) handleGetGame(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(state)
 }
 
-// handleSaveGame returns the current game state for saving
+// handleSaveGame saves the current game state to a file
 func (s *Server) handleSaveGame(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -142,17 +154,95 @@ func (s *Server) handleSaveGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.game == nil {
-		http.Error(w, "No game in progress", http.StatusNotFound)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "No game in progress",
+		})
 		return
 	}
 
 	state := GameStateToDTO(s.game)
-	response := map[string]interface{}{
-		"success":   true,
-		"save_data": state,
+
+	// Generate filename with timestamp
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+	filename := fmt.Sprintf("save_%s.json", timestamp)
+	savePath := filepath.Join(s.savesPath, filename)
+
+	// Write to file
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to serialize game state",
+		})
+		return
 	}
+
+	if err := os.WriteFile(savePath, data, 0644); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to write save file: %v", err),
+		})
+		return
+	}
+
+	log.Printf("Game saved to: %s", savePath)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"filename": filename,
+		"path":     savePath,
+	})
+}
+
+// handleListSaves returns a list of save files
+func (s *Server) handleListSaves(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	files, err := os.ReadDir(s.savesPath)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to read saves directory",
+		})
+		return
+	}
+
+	type SaveInfo struct {
+		Filename string `json:"filename"`
+		Modified string `json:"modified"`
+		Size     int64  `json:"size"`
+	}
+
+	saves := make([]SaveInfo, 0)
+	for _, file := range files {
+		if file.IsDir() || filepath.Ext(file.Name()) != ".json" {
+			continue
+		}
+		info, err := file.Info()
+		if err != nil {
+			continue
+		}
+		saves = append(saves, SaveInfo{
+			Filename: file.Name(),
+			Modified: info.ModTime().Format("2006-01-02 15:04:05"),
+			Size:     info.Size(),
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"saves":   saves,
+	})
 }
 
 // handleLoadGame loads a game from save data

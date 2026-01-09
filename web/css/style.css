@@ -650,6 +650,47 @@ body {
     line-height: 1.6;
 }
 
+/* ============ LOAD GAME MODAL ============ */
+#saves-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.save-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.4rem;
+    background: var(--panel-dark);
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light) var(--panel-border-light) var(--panel-border-dark);
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.save-item:hover {
+    background: var(--panel-bg);
+    border-color: var(--panel-border-light) var(--panel-border-dark) var(--panel-border-dark) var(--panel-border-light);
+}
+
+.save-item .save-name {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.save-item .save-date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.no-saves {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+}
+
 /* ============ SCROLLBAR ============ */
 ::-webkit-scrollbar {
     width: 12px;

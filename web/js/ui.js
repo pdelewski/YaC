@@ -164,14 +164,10 @@ class UI {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.save_data) {
-                const blob = new Blob([JSON.stringify(data.save_data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `civilization_save_${Date.now()}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
+            if (data.success) {
+                alert(`Game saved: ${data.filename}`);
+            } else {
+                alert('Failed to save game: ' + (data.error || 'Unknown error'));
             }
         })
         .catch(error => {
@@ -180,41 +176,65 @@ class UI {
         });
     }
 
-    // Open save file
+    // Open load game modal
     openSaveFile() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const saveData = JSON.parse(event.target.result);
-                        this.loadGame(saveData);
-                    } catch (err) {
-                        alert('Invalid save file.');
-                    }
-                };
-                reader.readAsText(file);
-            }
-        };
-        input.click();
+        this.showLoadModal();
     }
 
-    // Load game from save data
-    loadGame(saveData) {
+    // Show load game modal with list of saves
+    showLoadModal() {
+        const modal = document.getElementById('load-modal');
+        const savesList = document.getElementById('saves-list');
+
+        // Fetch list of saves
+        fetch(Config.API.LIST_SAVES)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.saves && data.saves.length > 0) {
+                    savesList.innerHTML = data.saves.map(save => `
+                        <div class="save-item" data-filename="${save.filename}">
+                            <span class="save-name">${save.filename}</span>
+                            <span class="save-date">${save.modified}</span>
+                        </div>
+                    `).join('');
+
+                    // Add click handlers
+                    savesList.querySelectorAll('.save-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            const filename = item.dataset.filename;
+                            this.loadGameByFilename(filename);
+                        });
+                    });
+                } else {
+                    savesList.innerHTML = '<p class="no-saves">No saved games found</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching saves:', error);
+                savesList.innerHTML = '<p class="no-saves">Failed to load saves list</p>';
+            });
+
+        modal.classList.remove('hidden');
+
+        // Setup close handler
+        document.getElementById('load-modal-close').onclick = () => {
+            modal.classList.add('hidden');
+        };
+    }
+
+    // Load game by filename
+    loadGameByFilename(filename) {
         fetch(Config.API.LOAD_GAME, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(saveData)
+            body: JSON.stringify({ filename: filename })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                document.getElementById('load-modal').classList.add('hidden');
                 gameSocket.connect();
                 this.showGameScreen();
             } else {

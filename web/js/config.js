@@ -86,6 +86,7 @@ const Config = {
         GET_GAME: '/api/game',
         SAVE_GAME: '/api/game/save',
         LOAD_GAME: '/api/game/load',
+        LIST_SAVES: '/api/game/saves',
         WEBSOCKET: `ws://${window.location.host}/ws`
     }
 };
