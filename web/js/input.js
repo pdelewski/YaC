@@ -82,8 +82,11 @@ class InputHandler {
     }
 
     onWheel(e) {
-        // Zoom disabled - use minimap to navigate
         e.preventDefault();
+
+        // Use scroll wheel/touchpad for panning
+        const panSpeed = 1.5;
+        renderer.pan(e.deltaX * panSpeed, e.deltaY * panSpeed);
     }
 
     onClick(e) {
