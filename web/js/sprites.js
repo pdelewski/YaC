@@ -19,33 +19,26 @@ class SpriteManager {
         const unitTypes = ['settler', 'warrior', 'phalanx', 'archer', 'horseman', 'catapult'];
         const terrainTypes = ['ocean', 'grassland', 'plains', 'desert', 'hills', 'mountains', 'forest'];
         const transitionTypes = [
-            // Ocean transitions
+            // Ocean transitions (no forest - forest only borders grassland)
             'ocean_grassland_h',
             'ocean_plains_h',
             'ocean_desert_h',
-            'ocean_forest_h',
             'ocean_hills_h',
             'ocean_mountains_h',
-            // Grassland transitions
+            // Grassland transitions (no forest - forest has grassland background)
             'grassland_plains_h',
             'grassland_desert_h',
             'grassland_hills_h',
             'grassland_mountains_h',
-            'grassland_forest_h',
             // Plains transitions
             'plains_desert_h',
             'plains_hills_h',
             'plains_mountains_h',
-            'plains_forest_h',
             // Desert transitions
             'desert_hills_h',
             'desert_mountains_h',
-            'desert_forest_h',
             // Hills transitions
-            'hills_mountains_h',
-            'hills_forest_h',
-            // Forest transitions
-            'forest_mountains_h'
+            'hills_mountains_h'
         ];
         const loadPromises = [];
 
