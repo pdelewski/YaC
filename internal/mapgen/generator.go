@@ -72,9 +72,9 @@ func (g *Generator) Generate() *game.GameMap {
 	// Post-processing
 	g.smoothCoastlines(gm)
 	g.generateLakes(gm)           // Add lakes (small ocean clusters) on plains/grassland
-	g.generateRivers(gm)          // Add rivers flowing from highlands to ocean (before removing coastal elevations)
+	g.addForests(gm)              // Add forests before rivers so rivers can avoid them
+	g.generateRivers(gm)          // Add rivers flowing from highlands to ocean (avoids forests)
 	g.removeCoastalElevations(gm) // Hills/mountains cannot border ocean
-	g.addForests(gm)              // Add forests only on grassland surrounded by grassland
 	g.ensurePlayability(gm)
 	g.placeResources(gm) // Add resources to tiles
 
