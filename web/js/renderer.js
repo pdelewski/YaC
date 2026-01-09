@@ -194,77 +194,109 @@ class Renderer {
         const ctx = this.ctx;
         const numPoints = screenPoints.length;
 
-        // Draw segments with increasing width
+        // First pass: draw shadows on both sides of river
         for (let i = 0; i < numPoints - 1; i++) {
-            const progress = i / (numPoints - 1); // 0 to 1
+            const progress = i / (numPoints - 1);
             const nextProgress = (i + 1) / (numPoints - 1);
 
-            // Width increases from 1/16 to 1/4 of tile size (wider at mouth)
             const minWidth = scaledTileSize / 16;
             const maxWidth = scaledTileSize / 4;
-
-            // Use easing function for more natural widening (slow start, faster end)
-            const easedProgress = progress * progress; // quadratic easing
+            const easedProgress = progress * progress;
             const easedNextProgress = nextProgress * nextProgress;
-
             const startWidth = minWidth + (maxWidth - minWidth) * easedProgress;
             const endWidth = minWidth + (maxWidth - minWidth) * easedNextProgress;
             const avgWidth = (startWidth + endWidth) / 2;
 
-            // Full opacity - rivers now end at ocean border
-            const alpha = 1.0;
-
-            // Get control points for smooth curve
             const p0 = screenPoints[Math.max(0, i - 1)];
             const p1 = screenPoints[i];
             const p2 = screenPoints[i + 1];
             const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
 
-            // Catmull-Rom to Bezier control points
             const cp1x = p1.x + (p2.x - p0.x) / 6;
             const cp1y = p1.y + (p2.y - p0.y) / 6;
             const cp2x = p2.x - (p3.x - p1.x) / 6;
             const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-            // Draw dark outline
+            // Draw soft outer shadow (dark, wide, transparent)
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = `rgba(26, 68, 136, ${alpha})`;
+            ctx.strokeStyle = 'rgba(0, 20, 40, 0.3)';
+            ctx.lineWidth = Math.max(4, avgWidth + 6);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Draw inner shadow (slightly darker blue)
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = 'rgba(10, 40, 80, 0.5)';
+            ctx.lineWidth = Math.max(3, avgWidth + 4);
+            ctx.stroke();
+        }
+
+        // Second pass: draw the river itself
+        for (let i = 0; i < numPoints - 1; i++) {
+            const progress = i / (numPoints - 1);
+            const nextProgress = (i + 1) / (numPoints - 1);
+
+            const minWidth = scaledTileSize / 16;
+            const maxWidth = scaledTileSize / 4;
+            const easedProgress = progress * progress;
+            const easedNextProgress = nextProgress * nextProgress;
+            const startWidth = minWidth + (maxWidth - minWidth) * easedProgress;
+            const endWidth = minWidth + (maxWidth - minWidth) * easedNextProgress;
+            const avgWidth = (startWidth + endWidth) / 2;
+
+            const p0 = screenPoints[Math.max(0, i - 1)];
+            const p1 = screenPoints[i];
+            const p2 = screenPoints[i + 1];
+            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
+
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            // Draw dark outline/bank
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = '#1a4488';
             ctx.lineWidth = Math.max(2, avgWidth + 2);
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
 
-            // Draw main river
+            // Draw main river water
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = `rgba(68, 153, 221, ${alpha})`;
+            ctx.strokeStyle = '#4499dd';
             ctx.lineWidth = Math.max(1.5, avgWidth);
             ctx.stroke();
 
-            // Draw highlight (slightly offset towards light source)
+            // Draw highlight (light reflection)
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = `rgba(102, 187, 255, ${alpha * 0.8})`;
+            ctx.strokeStyle = 'rgba(102, 187, 255, 0.8)';
             ctx.lineWidth = Math.max(1, avgWidth * 0.4);
             ctx.stroke();
         }
     }
 
-    // Draw a delta branch (thinner, fading out)
+    // Draw a delta branch (thinner, with shadows)
     drawDeltaBranch(screenPoints, scaledTileSize) {
         if (screenPoints.length < 2) return;
 
         const ctx = this.ctx;
         const numPoints = screenPoints.length;
 
+        // First pass: draw shadows
         for (let i = 0; i < numPoints - 1; i++) {
             const progress = i / (numPoints - 1);
-
-            // Delta branches start medium and get thinner, then fade
             const width = scaledTileSize / 8 * (1 - progress * 0.7);
             const alpha = 1 - progress * 0.5;
 
@@ -278,7 +310,33 @@ class Renderer {
             const cp2x = p2.x - (p3.x - p1.x) / 6;
             const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-            // Dark outline
+            // Outer shadow
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = `rgba(0, 20, 40, ${alpha * 0.25})`;
+            ctx.lineWidth = Math.max(3, width + 4);
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+
+        // Second pass: draw the branch
+        for (let i = 0; i < numPoints - 1; i++) {
+            const progress = i / (numPoints - 1);
+            const width = scaledTileSize / 8 * (1 - progress * 0.7);
+            const alpha = 1 - progress * 0.5;
+
+            const p0 = screenPoints[Math.max(0, i - 1)];
+            const p1 = screenPoints[i];
+            const p2 = screenPoints[i + 1];
+            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
+
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            // Dark outline/bank
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
