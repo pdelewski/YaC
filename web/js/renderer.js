@@ -188,171 +188,163 @@ class Renderer {
     }
 
     // Draw a river with variable width - thin at start, wide at end
+    // Uses filled polygons for smooth continuous appearance
     drawVariableWidthRiver(screenPoints, scaledTileSize) {
         if (screenPoints.length < 2) return;
 
         const ctx = this.ctx;
         const numPoints = screenPoints.length;
 
-        // First pass: draw shadows on both sides of river
-        for (let i = 0; i < numPoints - 1; i++) {
+        // Calculate widths at each point
+        const widths = [];
+        const minWidth = scaledTileSize / 16;
+        const maxWidth = scaledTileSize / 4;
+
+        for (let i = 0; i < numPoints; i++) {
             const progress = i / (numPoints - 1);
-            const nextProgress = (i + 1) / (numPoints - 1);
-
-            const minWidth = scaledTileSize / 16;
-            const maxWidth = scaledTileSize / 4;
             const easedProgress = progress * progress;
-            const easedNextProgress = nextProgress * nextProgress;
-            const startWidth = minWidth + (maxWidth - minWidth) * easedProgress;
-            const endWidth = minWidth + (maxWidth - minWidth) * easedNextProgress;
-            const avgWidth = (startWidth + endWidth) / 2;
-
-            const p0 = screenPoints[Math.max(0, i - 1)];
-            const p1 = screenPoints[i];
-            const p2 = screenPoints[i + 1];
-            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
-
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-            // Draw soft outer shadow (dark, wide)
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = 'rgba(0, 15, 30, 0.6)';
-            ctx.lineWidth = Math.max(6, avgWidth + 10);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-
-            // Draw inner shadow (darker)
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = 'rgba(5, 25, 50, 0.7)';
-            ctx.lineWidth = Math.max(4, avgWidth + 6);
-            ctx.stroke();
+            widths.push(minWidth + (maxWidth - minWidth) * easedProgress);
         }
 
-        // Second pass: draw the river itself
-        for (let i = 0; i < numPoints - 1; i++) {
-            const progress = i / (numPoints - 1);
-            const nextProgress = (i + 1) / (numPoints - 1);
+        // Calculate perpendicular offsets for left and right edges
+        const leftEdge = [];
+        const rightEdge = [];
 
-            const minWidth = scaledTileSize / 16;
-            const maxWidth = scaledTileSize / 4;
-            const easedProgress = progress * progress;
-            const easedNextProgress = nextProgress * nextProgress;
-            const startWidth = minWidth + (maxWidth - minWidth) * easedProgress;
-            const endWidth = minWidth + (maxWidth - minWidth) * easedNextProgress;
-            const avgWidth = (startWidth + endWidth) / 2;
+        for (let i = 0; i < numPoints; i++) {
+            const p = screenPoints[i];
+            const width = widths[i];
 
-            const p0 = screenPoints[Math.max(0, i - 1)];
-            const p1 = screenPoints[i];
-            const p2 = screenPoints[i + 1];
-            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
+            // Calculate direction (tangent)
+            let dx, dy;
+            if (i === 0) {
+                dx = screenPoints[1].x - p.x;
+                dy = screenPoints[1].y - p.y;
+            } else if (i === numPoints - 1) {
+                dx = p.x - screenPoints[i - 1].x;
+                dy = p.y - screenPoints[i - 1].y;
+            } else {
+                dx = screenPoints[i + 1].x - screenPoints[i - 1].x;
+                dy = screenPoints[i + 1].y - screenPoints[i - 1].y;
+            }
 
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            // Normalize and get perpendicular
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            const perpX = -dy / len;
+            const perpY = dx / len;
 
-            // Draw dark outline/bank
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = '#1a4488';
-            ctx.lineWidth = Math.max(2, avgWidth + 2);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-
-            // Draw main river water
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = '#4499dd';
-            ctx.lineWidth = Math.max(1.5, avgWidth);
-            ctx.stroke();
-
-            // Draw highlight (light reflection)
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = 'rgba(102, 187, 255, 0.8)';
-            ctx.lineWidth = Math.max(1, avgWidth * 0.4);
-            ctx.stroke();
+            leftEdge.push({ x: p.x + perpX * width / 2, y: p.y + perpY * width / 2 });
+            rightEdge.push({ x: p.x - perpX * width / 2, y: p.y - perpY * width / 2 });
         }
+
+        // Helper to draw filled river shape with given width multiplier
+        const drawRiverShape = (widthMult, fillStyle) => {
+            ctx.beginPath();
+
+            // Left edge (forward)
+            ctx.moveTo(
+                screenPoints[0].x + (leftEdge[0].x - screenPoints[0].x) * widthMult,
+                screenPoints[0].y + (leftEdge[0].y - screenPoints[0].y) * widthMult
+            );
+
+            for (let i = 1; i < numPoints; i++) {
+                const lx = screenPoints[i].x + (leftEdge[i].x - screenPoints[i].x) * widthMult;
+                const ly = screenPoints[i].y + (leftEdge[i].y - screenPoints[i].y) * widthMult;
+                ctx.lineTo(lx, ly);
+            }
+
+            // Right edge (backward)
+            for (let i = numPoints - 1; i >= 0; i--) {
+                const rx = screenPoints[i].x + (rightEdge[i].x - screenPoints[i].x) * widthMult;
+                const ry = screenPoints[i].y + (rightEdge[i].y - screenPoints[i].y) * widthMult;
+                ctx.lineTo(rx, ry);
+            }
+
+            ctx.closePath();
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+        };
+
+        // Draw layers from outside in
+        drawRiverShape(2.5, 'rgba(0, 15, 30, 0.5)');      // Outer shadow
+        drawRiverShape(1.8, 'rgba(5, 25, 50, 0.6)');      // Inner shadow
+        drawRiverShape(1.3, '#1a4488');                    // Bank/outline
+        drawRiverShape(1.0, '#4499dd');                    // Main water
+        drawRiverShape(0.4, 'rgba(102, 187, 255, 0.7)');  // Highlight
     }
 
-    // Draw a delta branch (thinner, with shadows)
+    // Draw a delta branch (thinner, with shadows) using filled polygons
     drawDeltaBranch(screenPoints, scaledTileSize) {
         if (screenPoints.length < 2) return;
 
         const ctx = this.ctx;
         const numPoints = screenPoints.length;
 
-        // First pass: draw shadows
-        for (let i = 0; i < numPoints - 1; i++) {
+        // Calculate widths at each point (starts medium, gets thinner)
+        const widths = [];
+        for (let i = 0; i < numPoints; i++) {
             const progress = i / (numPoints - 1);
-            const width = scaledTileSize / 8 * (1 - progress * 0.7);
-            const alpha = 1 - progress * 0.5;
-
-            const p0 = screenPoints[Math.max(0, i - 1)];
-            const p1 = screenPoints[i];
-            const p2 = screenPoints[i + 1];
-            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
-
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-            // Outer shadow
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = `rgba(0, 15, 30, ${alpha * 0.5})`;
-            ctx.lineWidth = Math.max(4, width + 6);
-            ctx.lineCap = 'round';
-            ctx.stroke();
+            widths.push(scaledTileSize / 8 * (1 - progress * 0.7));
         }
 
-        // Second pass: draw the branch
-        for (let i = 0; i < numPoints - 1; i++) {
-            const progress = i / (numPoints - 1);
-            const width = scaledTileSize / 8 * (1 - progress * 0.7);
-            const alpha = 1 - progress * 0.5;
+        // Calculate perpendicular offsets for left and right edges
+        const leftEdge = [];
+        const rightEdge = [];
 
-            const p0 = screenPoints[Math.max(0, i - 1)];
-            const p1 = screenPoints[i];
-            const p2 = screenPoints[i + 1];
-            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
+        for (let i = 0; i < numPoints; i++) {
+            const p = screenPoints[i];
+            const width = widths[i];
 
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            let dx, dy;
+            if (i === 0) {
+                dx = screenPoints[1].x - p.x;
+                dy = screenPoints[1].y - p.y;
+            } else if (i === numPoints - 1) {
+                dx = p.x - screenPoints[i - 1].x;
+                dy = p.y - screenPoints[i - 1].y;
+            } else {
+                dx = screenPoints[i + 1].x - screenPoints[i - 1].x;
+                dy = screenPoints[i + 1].y - screenPoints[i - 1].y;
+            }
 
-            // Dark outline/bank
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = `rgba(26, 68, 136, ${alpha})`;
-            ctx.lineWidth = Math.max(1.5, width + 1);
-            ctx.lineCap = 'round';
-            ctx.stroke();
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            const perpX = -dy / len;
+            const perpY = dx / len;
 
-            // Main water
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = `rgba(68, 153, 221, ${alpha})`;
-            ctx.lineWidth = Math.max(1, width);
-            ctx.stroke();
+            leftEdge.push({ x: p.x + perpX * width / 2, y: p.y + perpY * width / 2 });
+            rightEdge.push({ x: p.x - perpX * width / 2, y: p.y - perpY * width / 2 });
         }
+
+        // Helper to draw filled branch shape
+        const drawBranchShape = (widthMult, fillStyle) => {
+            ctx.beginPath();
+
+            ctx.moveTo(
+                screenPoints[0].x + (leftEdge[0].x - screenPoints[0].x) * widthMult,
+                screenPoints[0].y + (leftEdge[0].y - screenPoints[0].y) * widthMult
+            );
+
+            for (let i = 1; i < numPoints; i++) {
+                const lx = screenPoints[i].x + (leftEdge[i].x - screenPoints[i].x) * widthMult;
+                const ly = screenPoints[i].y + (leftEdge[i].y - screenPoints[i].y) * widthMult;
+                ctx.lineTo(lx, ly);
+            }
+
+            for (let i = numPoints - 1; i >= 0; i--) {
+                const rx = screenPoints[i].x + (rightEdge[i].x - screenPoints[i].x) * widthMult;
+                const ry = screenPoints[i].y + (rightEdge[i].y - screenPoints[i].y) * widthMult;
+                ctx.lineTo(rx, ry);
+            }
+
+            ctx.closePath();
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+        };
+
+        // Draw layers from outside in
+        drawBranchShape(2.0, 'rgba(0, 15, 30, 0.4)');     // Outer shadow
+        drawBranchShape(1.5, 'rgba(5, 25, 50, 0.5)');     // Inner shadow
+        drawBranchShape(1.2, 'rgba(26, 68, 136, 0.9)');   // Bank/outline
+        drawBranchShape(1.0, 'rgba(68, 153, 221, 0.9)');  // Main water
     }
 
     // Draw resource icon on tile
