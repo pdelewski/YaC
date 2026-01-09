@@ -397,8 +397,15 @@ class Renderer {
 
         const resourceSprite = spriteManager.getResource(resourceType);
         if (resourceSprite) {
-            // Draw resource icon centered on tile, slightly smaller
-            const iconSize = s * 0.6;
+            // Some resources need to be larger
+            const sizeMultipliers = {
+                'Silk': 0.8,
+                'Gems': 0.8,
+                'Spices': 0.8
+            };
+            const multiplier = sizeMultipliers[resourceType] || 0.6;
+
+            const iconSize = s * multiplier;
             const iconX = x + (s - iconSize) / 2;
             const iconY = y + (s - iconSize) / 2;
             this.ctx.drawImage(resourceSprite, iconX, iconY, iconSize, iconSize);
