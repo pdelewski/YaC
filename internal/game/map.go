@@ -44,6 +44,19 @@ type Tile struct {
 	HasRoad       bool         `json:"has_road"`
 	HasMine       bool         `json:"has_mine"`
 	HasIrrigation bool         `json:"has_irrigation"`
+	HasRiver      bool         `json:"has_river"` // Tile is adjacent to a river
+}
+
+// RiverPoint represents a point along a river path
+type RiverPoint struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// River represents a complete river as a path of points
+type River struct {
+	Points []RiverPoint   `json:"points"`
+	Delta  [][]RiverPoint `json:"delta,omitempty"` // Delta branches near the mouth
 }
 
 // MovementCost returns the movement cost to enter this tile
@@ -59,6 +72,10 @@ func (t *Tile) MovementCost() int {
 func (t *Tile) FoodYield() int {
 	yield := TerrainFoodYield[t.Terrain]
 	if t.HasIrrigation {
+		yield++
+	}
+	// River bonus (+1 food)
+	if t.HasRiver {
 		yield++
 	}
 	// Add resource bonus
@@ -109,11 +126,13 @@ func (t *Tile) IsWater() bool {
 	return t.Terrain == TerrainOcean
 }
 
+
 // GameMap represents the game world map
 type GameMap struct {
 	Width  int      `json:"width"`
 	Height int      `json:"height"`
 	Tiles  [][]Tile `json:"tiles"`
+	Rivers []River  `json:"rivers"`
 }
 
 // NewGameMap creates a new empty game map

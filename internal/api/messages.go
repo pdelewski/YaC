@@ -74,11 +74,24 @@ type UpdateMessage struct {
 
 // Data Transfer Objects (DTOs)
 
+// RiverPointDTO represents a point along a river path
+type RiverPointDTO struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// RiverDTO represents a complete river as a path of points
+type RiverDTO struct {
+	Points []RiverPointDTO   `json:"points"`
+	Delta  [][]RiverPointDTO `json:"delta,omitempty"`
+}
+
 // MapDTO represents the map in JSON format
 type MapDTO struct {
-	Width  int       `json:"width"`
-	Height int       `json:"height"`
-	Tiles  []TileDTO `json:"tiles"`
+	Width  int        `json:"width"`
+	Height int        `json:"height"`
+	Tiles  []TileDTO  `json:"tiles"`
+	Rivers []RiverDTO `json:"rivers"`
 }
 
 // TileDTO represents a single tile
@@ -90,6 +103,7 @@ type TileDTO struct {
 	HasRoad       bool   `json:"has_road,omitempty"`
 	HasMine       bool   `json:"has_mine,omitempty"`
 	HasIrrigation bool   `json:"has_irrigation,omitempty"`
+	HasRiver      bool   `json:"has_river,omitempty"`
 }
 
 // PlayerDTO represents a player
@@ -174,6 +188,7 @@ func MapToDTO(m *game.GameMap) MapDTO {
 		Width:  m.Width,
 		Height: m.Height,
 		Tiles:  make([]TileDTO, 0, m.Width*m.Height),
+		Rivers: make([]RiverDTO, 0, len(m.Rivers)),
 	}
 
 	for y := 0; y < m.Height; y++ {
@@ -181,6 +196,33 @@ func MapToDTO(m *game.GameMap) MapDTO {
 			tile := m.GetTile(x, y)
 			dto.Tiles = append(dto.Tiles, TileToDTO(tile))
 		}
+	}
+
+	// Convert rivers
+	for _, river := range m.Rivers {
+		riverDTO := RiverDTO{
+			Points: make([]RiverPointDTO, len(river.Points)),
+		}
+		for i, point := range river.Points {
+			riverDTO.Points[i] = RiverPointDTO{
+				X: point.X,
+				Y: point.Y,
+			}
+		}
+		// Convert delta branches
+		if len(river.Delta) > 0 {
+			riverDTO.Delta = make([][]RiverPointDTO, len(river.Delta))
+			for i, branch := range river.Delta {
+				riverDTO.Delta[i] = make([]RiverPointDTO, len(branch))
+				for j, point := range branch {
+					riverDTO.Delta[i][j] = RiverPointDTO{
+						X: point.X,
+						Y: point.Y,
+					}
+				}
+			}
+		}
+		dto.Rivers = append(dto.Rivers, riverDTO)
 	}
 
 	return dto
@@ -196,6 +238,7 @@ func TileToDTO(t *game.Tile) TileDTO {
 		HasRoad:       t.HasRoad,
 		HasMine:       t.HasMine,
 		HasIrrigation: t.HasIrrigation,
+		HasRiver:      t.HasRiver,
 	}
 }
 
@@ -401,6 +444,34 @@ func DTOToMap(dto *MapDTO) *game.GameMap {
 			tile.HasRoad = t.HasRoad
 			tile.HasMine = t.HasMine
 			tile.HasIrrigation = t.HasIrrigation
+			tile.HasRiver = t.HasRiver
+		}
+	}
+
+	// Convert rivers
+	gm.Rivers = make([]game.River, len(dto.Rivers))
+	for i, riverDTO := range dto.Rivers {
+		gm.Rivers[i] = game.River{
+			Points: make([]game.RiverPoint, len(riverDTO.Points)),
+		}
+		for j, point := range riverDTO.Points {
+			gm.Rivers[i].Points[j] = game.RiverPoint{
+				X: point.X,
+				Y: point.Y,
+			}
+		}
+		// Convert delta branches
+		if len(riverDTO.Delta) > 0 {
+			gm.Rivers[i].Delta = make([][]game.RiverPoint, len(riverDTO.Delta))
+			for j, branch := range riverDTO.Delta {
+				gm.Rivers[i].Delta[j] = make([]game.RiverPoint, len(branch))
+				for k, point := range branch {
+					gm.Rivers[i].Delta[j][k] = game.RiverPoint{
+						X: point.X,
+						Y: point.Y,
+					}
+				}
+			}
 		}
 	}
 

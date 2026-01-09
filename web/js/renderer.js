@@ -154,6 +154,147 @@ class Renderer {
                 }
             }
         }
+
+        // Fourth pass: draw rivers as smooth paths
+        this.renderRivers();
+    }
+
+    // Render all rivers as smooth bezier paths with variable width
+    renderRivers() {
+        if (!gameState.map || !gameState.map.rivers || gameState.map.rivers.length === 0) {
+            return;
+        }
+
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+        const ctx = this.ctx;
+
+        for (const river of gameState.map.rivers) {
+            if (!river.points || river.points.length < 2) continue;
+
+            // Convert river points to screen coordinates
+            const screenPoints = river.points.map(p => this.worldToScreen(p.x, p.y));
+
+            // Draw river with variable width (thin at source, wide at mouth)
+            this.drawVariableWidthRiver(screenPoints, scaledTileSize);
+
+            // Draw delta if river has delta branches
+            if (river.delta && river.delta.length > 0) {
+                for (const branch of river.delta) {
+                    const branchPoints = branch.map(p => this.worldToScreen(p.x, p.y));
+                    this.drawDeltaBranch(branchPoints, scaledTileSize);
+                }
+            }
+        }
+    }
+
+    // Draw a river with variable width - thin at start, wide at end
+    drawVariableWidthRiver(screenPoints, scaledTileSize) {
+        if (screenPoints.length < 2) return;
+
+        const ctx = this.ctx;
+        const numPoints = screenPoints.length;
+
+        // Draw segments with increasing width
+        for (let i = 0; i < numPoints - 1; i++) {
+            const progress = i / (numPoints - 1); // 0 to 1
+            const nextProgress = (i + 1) / (numPoints - 1);
+
+            // Width increases from 1/16 to 1/4 of tile size (wider at mouth)
+            const minWidth = scaledTileSize / 16;
+            const maxWidth = scaledTileSize / 4;
+
+            // Use easing function for more natural widening (slow start, faster end)
+            const easedProgress = progress * progress; // quadratic easing
+            const easedNextProgress = nextProgress * nextProgress;
+
+            const startWidth = minWidth + (maxWidth - minWidth) * easedProgress;
+            const endWidth = minWidth + (maxWidth - minWidth) * easedNextProgress;
+            const avgWidth = (startWidth + endWidth) / 2;
+
+            // Full opacity - rivers now end at ocean border
+            const alpha = 1.0;
+
+            // Get control points for smooth curve
+            const p0 = screenPoints[Math.max(0, i - 1)];
+            const p1 = screenPoints[i];
+            const p2 = screenPoints[i + 1];
+            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
+
+            // Catmull-Rom to Bezier control points
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            // Draw dark outline
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = `rgba(26, 68, 136, ${alpha})`;
+            ctx.lineWidth = Math.max(2, avgWidth + 2);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Draw main river
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = `rgba(68, 153, 221, ${alpha})`;
+            ctx.lineWidth = Math.max(1.5, avgWidth);
+            ctx.stroke();
+
+            // Draw highlight (slightly offset towards light source)
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = `rgba(102, 187, 255, ${alpha * 0.8})`;
+            ctx.lineWidth = Math.max(1, avgWidth * 0.4);
+            ctx.stroke();
+        }
+    }
+
+    // Draw a delta branch (thinner, fading out)
+    drawDeltaBranch(screenPoints, scaledTileSize) {
+        if (screenPoints.length < 2) return;
+
+        const ctx = this.ctx;
+        const numPoints = screenPoints.length;
+
+        for (let i = 0; i < numPoints - 1; i++) {
+            const progress = i / (numPoints - 1);
+
+            // Delta branches start medium and get thinner, then fade
+            const width = scaledTileSize / 8 * (1 - progress * 0.7);
+            const alpha = 1 - progress * 0.5;
+
+            const p0 = screenPoints[Math.max(0, i - 1)];
+            const p1 = screenPoints[i];
+            const p2 = screenPoints[i + 1];
+            const p3 = screenPoints[Math.min(numPoints - 1, i + 2)];
+
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            // Dark outline
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = `rgba(26, 68, 136, ${alpha})`;
+            ctx.lineWidth = Math.max(1.5, width + 1);
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Main water
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.strokeStyle = `rgba(68, 153, 221, ${alpha})`;
+            ctx.lineWidth = Math.max(1, width);
+            ctx.stroke();
+        }
     }
 
     // Draw resource icon on tile

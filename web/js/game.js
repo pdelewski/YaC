@@ -54,14 +54,22 @@ class GameState {
             tiles[y] = new Array(mapData.width);
         }
 
+        // Count tiles with rivers for debugging
+        let riverTileCount = 0;
         for (const tile of mapData.tiles) {
             tiles[tile.y][tile.x] = tile;
+            if (tile.has_river) {
+                riverTileCount++;
+            }
         }
+        console.log('Tiles with rivers:', riverTileCount);
+        console.log('Number of river paths:', mapData.rivers ? mapData.rivers.length : 0);
 
         return {
             width: mapData.width,
             height: mapData.height,
-            tiles: tiles
+            tiles: tiles,
+            rivers: mapData.rivers || []
         };
     }
 

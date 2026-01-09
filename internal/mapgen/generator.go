@@ -71,6 +71,7 @@ func (g *Generator) Generate() *game.GameMap {
 
 	// Post-processing
 	g.smoothCoastlines(gm)
+	g.generateRivers(gm)          // Add rivers flowing from highlands to ocean (before removing coastal elevations)
 	g.removeCoastalElevations(gm) // Hills/mountains cannot border ocean
 	g.addForests(gm)              // Add forests only on grassland surrounded by grassland
 	g.ensurePlayability(gm)
@@ -332,13 +333,13 @@ func (g *Generator) generateTerrain(x, y int) game.TerrainType {
 		return game.TerrainOcean
 	}
 
-	// Mountains
-	if elevation > g.config.MountainLevel+0.1 {
+	// Mountains (lowered threshold from 0.85 to 0.70)
+	if elevation > 0.70 {
 		return game.TerrainMountains
 	}
 
-	// Hills
-	if elevation > g.config.MountainLevel {
+	// Hills (lowered threshold from 0.75 to 0.58)
+	if elevation > 0.58 {
 		return game.TerrainHills
 	}
 
@@ -546,6 +547,325 @@ func (g *Generator) smoothCoastlines(gm *game.GameMap) {
 	for coord, terrain := range changes {
 		gm.SetTerrain(coord[0], coord[1], terrain)
 	}
+}
+
+// generateRivers creates rivers as smooth paths flowing from highlands to ocean
+func (g *Generator) generateRivers(gm *game.GameMap) {
+	log.Println("=== GENERATING RIVERS ===")
+
+	// Find potential river sources (mountains preferred, then hills)
+	mountainSources := make([][2]int, 0)
+	hillSources := make([][2]int, 0)
+
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
+			tile := gm.GetTile(x, y)
+			if tile == nil {
+				continue
+			}
+			if tile.Terrain == game.TerrainMountains {
+				mountainSources = append(mountainSources, [2]int{x, y})
+			} else if tile.Terrain == game.TerrainHills {
+				hillSources = append(hillSources, [2]int{x, y})
+			}
+		}
+	}
+
+	// Prefer mountains as sources, fall back to hills
+	sources := mountainSources
+	if len(sources) < 5 {
+		sources = append(sources, hillSources...)
+	}
+
+	log.Printf("Found %d potential river sources", len(sources))
+
+	if len(sources) == 0 {
+		return
+	}
+
+	// Generate fewer but longer rivers (3-8)
+	numRivers := 3 + g.rng.Intn(6)
+	if numRivers > len(sources) {
+		numRivers = len(sources)
+	}
+
+	log.Printf("Generating %d rivers", numRivers)
+
+	// Shuffle sources
+	g.rng.Shuffle(len(sources), func(i, j int) {
+		sources[i], sources[j] = sources[j], sources[i]
+	})
+
+	// Generate each river as a path
+	gm.Rivers = make([]game.River, 0)
+	for i := 0; i < numRivers; i++ {
+		river := g.traceRiverPath(gm, sources[i][0], sources[i][1])
+		if len(river.Points) > 3 { // Only keep rivers with enough points
+			// Add delta branches if river is long enough
+			if len(river.Points) > 8 {
+				g.addRiverDelta(gm, &river)
+			}
+			gm.Rivers = append(gm.Rivers, river)
+			// Mark tiles near the river
+			g.markRiverTiles(gm, river)
+		}
+	}
+
+	log.Printf("Total rivers created: %d", len(gm.Rivers))
+}
+
+// traceRiverPath creates a smooth river path from source towards ocean
+func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.River {
+	river := game.River{Points: make([]game.RiverPoint, 0)}
+
+	// Start point with small random offset within tile
+	px := float64(startX) + 0.3 + g.rng.Float64()*0.4
+	py := float64(startY) + 0.3 + g.rng.Float64()*0.4
+	river.Points = append(river.Points, game.RiverPoint{X: px, Y: py})
+
+	visited := make(map[[2]int]bool)
+	x, y := startX, startY
+	maxLength := 150
+
+	// Direction accumulator for smooth curves
+	dirX, dirY := 0.0, 0.0
+
+	for i := 0; i < maxLength; i++ {
+		visited[[2]int{x, y}] = true
+		tile := gm.GetTile(x, y)
+		if tile == nil {
+			break
+		}
+
+		// Find best direction to flow
+		bestX, bestY := -1, -1
+		bestScore := -1000.0
+
+		// Check all 8 directions for smoother paths
+		directions := [][2]int{
+			{0, -1}, {0, 1}, {1, 0}, {-1, 0},
+			{1, -1}, {1, 1}, {-1, -1}, {-1, 1},
+		}
+
+		for _, d := range directions {
+			nx, ny := x+d[0], y+d[1]
+			if visited[[2]int{nx, ny}] {
+				continue
+			}
+			nextTile := gm.GetTile(nx, ny)
+			if nextTile == nil {
+				continue
+			}
+
+			score := 0.0
+			if nextTile.Terrain == game.TerrainOcean {
+				score = 1000
+			} else {
+				switch nextTile.Terrain {
+				case game.TerrainMountains:
+					score = -20
+				case game.TerrainHills:
+					score = -5
+				case game.TerrainForest:
+					score = 3
+				case game.TerrainGrassland:
+					score = 4
+				case game.TerrainPlains:
+					score = 4
+				case game.TerrainDesert:
+					score = 2
+				}
+				// Randomness for meandering
+				score += g.rng.Float64() * 3
+
+				// Momentum - prefer continuing roughly same direction
+				dot := float64(d[0])*dirX + float64(d[1])*dirY
+				score += dot * 2
+			}
+
+			if score > bestScore {
+				bestScore = score
+				bestX, bestY = nx, ny
+			}
+		}
+
+		if bestX == -1 {
+			break
+		}
+
+		// Update direction accumulator (smoothed)
+		newDirX := float64(bestX - x)
+		newDirY := float64(bestY - y)
+		dirX = dirX*0.6 + newDirX*0.4
+		dirY = dirY*0.6 + newDirY*0.4
+
+		nextTile := gm.GetTile(bestX, bestY)
+		if nextTile != nil && nextTile.Terrain == game.TerrainOcean {
+			// Stop at the border of the ocean tile, not inside it
+			// Calculate edge point between current tile and ocean
+			edgeX := float64(x) + 0.5
+			edgeY := float64(y) + 0.5
+
+			// Move to the edge facing the ocean
+			if bestX > x {
+				edgeX = float64(x) + 0.95 // Right edge
+			} else if bestX < x {
+				edgeX = float64(x) + 0.05 // Left edge
+			}
+			if bestY > y {
+				edgeY = float64(y) + 0.95 // Bottom edge
+			} else if bestY < y {
+				edgeY = float64(y) + 0.05 // Top edge
+			}
+
+			river.Points = append(river.Points, game.RiverPoint{X: edgeX, Y: edgeY})
+			log.Printf("River reached ocean border, length: %d points", len(river.Points))
+			break
+		}
+
+		// Add point with meandering offset (only for non-ocean tiles)
+		offset := (g.rng.Float64() - 0.5) * 0.5
+		perpX := -newDirY * offset
+		perpY := newDirX * offset
+
+		newPx := float64(bestX) + 0.5 + perpX
+		newPy := float64(bestY) + 0.5 + perpY
+		river.Points = append(river.Points, game.RiverPoint{X: newPx, Y: newPy})
+
+		x, y = bestX, bestY
+	}
+
+	return river
+}
+
+// markRiverTiles marks tiles that are adjacent to a river
+func (g *Generator) markRiverTiles(gm *game.GameMap, river game.River) {
+	for _, pt := range river.Points {
+		// Mark the tile containing this point and adjacent tiles
+		tx, ty := int(pt.X), int(pt.Y)
+		for dy := -1; dy <= 1; dy++ {
+			for dx := -1; dx <= 1; dx++ {
+				tile := gm.GetTile(tx+dx, ty+dy)
+				if tile != nil && tile.Terrain != game.TerrainOcean {
+					tile.HasRiver = true
+				}
+			}
+		}
+	}
+	// Also mark tiles near delta branches
+	for _, branch := range river.Delta {
+		for _, pt := range branch {
+			tx, ty := int(pt.X), int(pt.Y)
+			for dy := -1; dy <= 1; dy++ {
+				for dx := -1; dx <= 1; dx++ {
+					tile := gm.GetTile(tx+dx, ty+dy)
+					if tile != nil && tile.Terrain != game.TerrainOcean {
+						tile.HasRiver = true
+					}
+				}
+			}
+		}
+	}
+}
+
+// addRiverDelta creates delta branches at the river mouth
+func (g *Generator) addRiverDelta(gm *game.GameMap, river *game.River) {
+	if len(river.Points) < 5 {
+		return
+	}
+
+	// Find the point where river meets ocean (last few points)
+	lastIdx := len(river.Points) - 1
+	lastPoint := river.Points[lastIdx]
+
+	// Check if the last point is near ocean
+	lastTileX, lastTileY := int(lastPoint.X), int(lastPoint.Y)
+	lastTile := gm.GetTile(lastTileX, lastTileY)
+	if lastTile == nil || lastTile.Terrain != game.TerrainOcean {
+		return // River didn't reach ocean
+	}
+
+	// Start delta from a point before the mouth (about 70% along the river)
+	deltaStartIdx := int(float64(len(river.Points)) * 0.7)
+	if deltaStartIdx < 3 {
+		deltaStartIdx = 3
+	}
+	deltaStart := river.Points[deltaStartIdx]
+
+	// Create 2-3 delta branches
+	numBranches := 2 + g.rng.Intn(2)
+	river.Delta = make([][]game.RiverPoint, 0)
+
+	for b := 0; b < numBranches; b++ {
+		branch := make([]game.RiverPoint, 0)
+
+		// Start slightly offset from main river
+		angleOffset := (float64(b) - float64(numBranches-1)/2) * 0.8
+		bx := deltaStart.X
+		by := deltaStart.Y
+
+		// Direction towards ocean (approximate from last points of main river)
+		mainDirX := lastPoint.X - deltaStart.X
+		mainDirY := lastPoint.Y - deltaStart.Y
+		length := math.Sqrt(mainDirX*mainDirX + mainDirY*mainDirY)
+		if length > 0 {
+			mainDirX /= length
+			mainDirY /= length
+		}
+
+		// Rotate direction for this branch
+		cos := math.Cos(angleOffset)
+		sin := math.Sin(angleOffset)
+		branchDirX := mainDirX*cos - mainDirY*sin
+		branchDirY := mainDirX*sin + mainDirY*cos
+
+		// Trace branch towards ocean
+		prevTileX, prevTileY := int(bx), int(by)
+		for i := 0; i < 8; i++ {
+			// Add meander
+			meander := (g.rng.Float64() - 0.5) * 0.3
+			perpX := -branchDirY * meander
+			perpY := branchDirX * meander
+
+			nextBx := bx + branchDirX*0.8 + perpX
+			nextBy := by + branchDirY*0.8 + perpY
+
+			// Check if next point would be in ocean
+			tileX, tileY := int(nextBx), int(nextBy)
+			tile := gm.GetTile(tileX, tileY)
+			if tile != nil && tile.Terrain == game.TerrainOcean {
+				// Stop at the border, not inside the ocean
+				edgeX := bx
+				edgeY := by
+
+				// Move to edge facing the ocean
+				if tileX > prevTileX {
+					edgeX = float64(prevTileX) + 0.95
+				} else if tileX < prevTileX {
+					edgeX = float64(prevTileX) + 0.05
+				}
+				if tileY > prevTileY {
+					edgeY = float64(prevTileY) + 0.95
+				} else if tileY < prevTileY {
+					edgeY = float64(prevTileY) + 0.05
+				}
+
+				branch = append(branch, game.RiverPoint{X: edgeX, Y: edgeY})
+				break
+			}
+
+			bx = nextBx
+			by = nextBy
+			branch = append(branch, game.RiverPoint{X: bx, Y: by})
+			prevTileX, prevTileY = tileX, tileY
+		}
+
+		if len(branch) > 1 {
+			river.Delta = append(river.Delta, branch)
+		}
+	}
+
+	log.Printf("Added %d delta branches to river", len(river.Delta))
 }
 
 // placeResources scatters resources across the map on valid terrain
