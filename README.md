@@ -39,9 +39,7 @@ make
 make run
 ```
 
-The server starts on `http://localhost:8080` by default.
-
-Open your browser and navigate to `http://localhost:8080` to play.
+The server starts at [http://localhost:8888](http://localhost:8888)
 
 ## Project Structure
 
