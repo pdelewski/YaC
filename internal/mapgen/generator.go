@@ -910,6 +910,14 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 				continue
 			}
 
+			// Skip tiles that have rivers (prevent crossing) or forests (rivers flow around)
+			if nextTile.HasRiver {
+				continue // Completely skip tiles with existing rivers
+			}
+			if nextTile.Terrain == game.TerrainForest {
+				continue // Completely skip forest tiles
+			}
+
 			score := 0.0
 			if nextTile.Terrain == game.TerrainOcean {
 				score = 1000
@@ -919,8 +927,6 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 					score = -20
 				case game.TerrainHills:
 					score = -5
-				case game.TerrainForest:
-					score = 3
 				case game.TerrainGrassland:
 					score = 4
 				case game.TerrainPlains:
