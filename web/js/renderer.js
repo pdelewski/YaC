@@ -1561,14 +1561,14 @@ class Renderer {
             const unit = gameState.selectedUnit;
             const screen = this.worldToScreen(unit.x, unit.y);
 
-            // Highlight
-            this.ctx.strokeStyle = '#ffff00';
-            this.ctx.lineWidth = 3;
+            // Highlight - black border, larger
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 5;
             this.ctx.strokeRect(
-                screen.x + 2,
-                screen.y + 2,
-                scaledTileSize - 4,
-                scaledTileSize - 4
+                screen.x - 2,
+                screen.y - 2,
+                scaledTileSize + 4,
+                scaledTileSize + 4
             );
 
             // Show movement range when in move mode
@@ -1587,13 +1587,13 @@ class Renderer {
             const city = gameState.selectedCity;
             const screen = this.worldToScreen(city.x, city.y);
 
-            this.ctx.strokeStyle = '#ffff00';
-            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 5;
             this.ctx.strokeRect(
-                screen.x + 2,
-                screen.y + 2,
-                scaledTileSize - 4,
-                scaledTileSize - 4
+                screen.x - 2,
+                screen.y - 2,
+                scaledTileSize + 4,
+                scaledTileSize + 4
             );
         }
     }
