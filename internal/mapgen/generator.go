@@ -66,6 +66,7 @@ func (g *Generator) Generate() *game.GameMap {
 
 	// Post-processing
 	g.addForests(gm)
+	g.removeCoastalForests(gm) // Forests shouldn't border ocean directly
 	g.smoothCoastlines(gm)
 	g.ensurePlayability(gm)
 
@@ -168,6 +169,28 @@ func (g *Generator) addForests(gm *game.GameMap) {
 
 			if forestValue > 0.2 {
 				tile.Terrain = game.TerrainForest
+			}
+		}
+	}
+}
+
+// removeCoastalForests converts forests adjacent to ocean back to grassland
+func (g *Generator) removeCoastalForests(gm *game.GameMap) {
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
+			tile := gm.GetTile(x, y)
+			if tile == nil || tile.Terrain != game.TerrainForest {
+				continue
+			}
+
+			// Check if any neighbor is ocean
+			neighbors := gm.GetNeighbors(x, y)
+			for _, n := range neighbors {
+				if n.Terrain == game.TerrainOcean {
+					// Convert forest back to grassland
+					tile.Terrain = game.TerrainGrassland
+					break
+				}
 			}
 		}
 	}
