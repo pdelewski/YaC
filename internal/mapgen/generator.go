@@ -71,7 +71,8 @@ func (g *Generator) Generate() *game.GameMap {
 
 	// Post-processing
 	g.smoothCoastlines(gm)
-	g.addForests(gm) // Add forests only on grassland surrounded by grassland
+	g.removeCoastalElevations(gm) // Hills/mountains cannot border ocean
+	g.addForests(gm)              // Add forests only on grassland surrounded by grassland
 	g.ensurePlayability(gm)
 	g.placeResources(gm) // Add resources to tiles
 
@@ -469,6 +470,38 @@ func (g *Generator) removeCoastalForests(gm *game.GameMap) {
 					tile.Terrain = game.TerrainGrassland
 					break
 				}
+			}
+		}
+	}
+}
+
+// removeCoastalElevations converts hills and mountains adjacent to ocean into plains/grassland
+func (g *Generator) removeCoastalElevations(gm *game.GameMap) {
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
+			tile := gm.GetTile(x, y)
+			if tile == nil {
+				continue
+			}
+
+			// Only process hills and mountains
+			if tile.Terrain != game.TerrainHills && tile.Terrain != game.TerrainMountains {
+				continue
+			}
+
+			// Check if any neighbor is ocean
+			neighbors := gm.GetNeighbors(x, y)
+			adjacentToOcean := false
+			for _, n := range neighbors {
+				if n.Terrain == game.TerrainOcean {
+					adjacentToOcean = true
+					break
+				}
+			}
+
+			if adjacentToOcean {
+				// Convert to plains (more natural coastal terrain)
+				tile.Terrain = game.TerrainPlains
 			}
 		}
 	}
