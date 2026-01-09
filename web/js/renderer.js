@@ -155,49 +155,218 @@ class Renderer {
     drawTerrainEdgeBlend(tile, tileX, tileY, screenX, screenY, size) {
         const ctx = this.ctx;
 
+        // Draw shadows for ocean borders (instead of transition tiles)
+        this.drawOceanShadows(tile, tileX, tileY, screenX, screenY, size);
+
         if (!spriteManager || !spriteManager.isTransitionsReady()) {
             return;
         }
 
-        // Check right neighbor for horizontal transition
+        // Check right neighbor for horizontal transition (skip ocean)
         const rightTile = gameState.getTile(tileX + 1, tileY);
         if (rightTile && rightTile.terrain !== tile.terrain) {
-            const trans = spriteManager.getTransition(tile.terrain, rightTile.terrain, 'right');
-            if (trans) {
-                // Draw transition tile centered on the edge
-                const transX = screenX + size * 0.5;
-                ctx.save();
-                if (trans.flip) {
-                    // Flip horizontally
-                    ctx.translate(transX + size, screenY);
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(trans.tile, 0, 0, size, size);
-                } else {
-                    ctx.drawImage(trans.tile, transX, screenY, size, size);
+            // Skip if ocean is involved
+            if (tile.terrain === 'Ocean' || rightTile.terrain === 'Ocean') {
+                // handled by shadows
+            } else {
+                const trans = spriteManager.getTransition(tile.terrain, rightTile.terrain, 'right');
+                if (trans) {
+                    const transX = screenX + size * 0.5;
+                    ctx.save();
+                    if (trans.flip) {
+                        ctx.translate(transX + size, screenY);
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(trans.tile, 0, 0, size, size);
+                    } else {
+                        ctx.drawImage(trans.tile, transX, screenY, size, size);
+                    }
+                    ctx.restore();
                 }
-                ctx.restore();
             }
         }
 
-        // Check bottom neighbor for vertical transition (rotate horizontal tile 90 degrees)
+        // Check bottom neighbor for vertical transition (skip ocean)
         const bottomTile = gameState.getTile(tileX, tileY + 1);
         if (bottomTile && bottomTile.terrain !== tile.terrain) {
-            const trans = spriteManager.getTransition(tile.terrain, bottomTile.terrain, 'bottom');
-            if (trans) {
-                // Draw transition tile rotated, centered on the bottom edge
-                const transY = screenY + size * 0.5;
-                ctx.save();
-                ctx.translate(screenX + size / 2, transY + size / 2);
-                if (trans.flip) {
-                    // Rotate counter-clockwise when flipped
-                    ctx.rotate(-Math.PI / 2);
-                } else {
-                    // Rotate clockwise
-                    ctx.rotate(Math.PI / 2);
+            // Skip if ocean is involved
+            if (tile.terrain === 'Ocean' || bottomTile.terrain === 'Ocean') {
+                // handled by shadows
+            } else {
+                const trans = spriteManager.getTransition(tile.terrain, bottomTile.terrain, 'bottom');
+                if (trans) {
+                    const transY = screenY + size * 0.5;
+                    ctx.save();
+                    ctx.translate(screenX + size / 2, transY + size / 2);
+                    if (trans.flip) {
+                        ctx.rotate(-Math.PI / 2);
+                    } else {
+                        ctx.rotate(Math.PI / 2);
+                    }
+                    ctx.drawImage(trans.tile, -size / 2, -size / 2, size, size);
+                    ctx.restore();
                 }
-                ctx.drawImage(trans.tile, -size / 2, -size / 2, size, size);
-                ctx.restore();
             }
+        }
+    }
+
+    // Draw shadow gradients for ocean borders
+    drawOceanShadows(tile, tileX, tileY, screenX, screenY, size) {
+        const ctx = this.ctx;
+        const blendSize = size * 0.4;
+        const oceanColor = 'rgba(0, 60, 130, 0.8)';
+
+        const thisIsOcean = tile.terrain === 'Ocean';
+
+        // Draw blue shadow on plains side (land tiles adjacent to ocean)
+        if (!thisIsOcean) {
+            const landDirections = [
+                { dx: 0, dy: -1, edge: 'top' },
+                { dx: 0, dy: 1, edge: 'bottom' },
+                { dx: -1, dy: 0, edge: 'left' },
+                { dx: 1, dy: 0, edge: 'right' }
+            ];
+
+            for (const dir of landDirections) {
+                const adjTile = gameState.getTile(tileX + dir.dx, tileY + dir.dy);
+                if (!adjTile || adjTile.terrain !== 'Ocean') continue;
+
+                let gradient;
+                switch (dir.edge) {
+                    case 'top':
+                        gradient = ctx.createLinearGradient(screenX, screenY, screenX, screenY + blendSize);
+                        break;
+                    case 'bottom':
+                        gradient = ctx.createLinearGradient(screenX, screenY + size, screenX, screenY + size - blendSize);
+                        break;
+                    case 'left':
+                        gradient = ctx.createLinearGradient(screenX, screenY, screenX + blendSize, screenY);
+                        break;
+                    case 'right':
+                        gradient = ctx.createLinearGradient(screenX + size, screenY, screenX + size - blendSize, screenY);
+                        break;
+                }
+
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+                gradient.addColorStop(0.3, 'rgba(200, 230, 255, 0.4)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                ctx.fillStyle = gradient;
+                switch (dir.edge) {
+                    case 'top':
+                        ctx.fillRect(screenX, screenY, size, blendSize);
+                        break;
+                    case 'bottom':
+                        ctx.fillRect(screenX, screenY + size - blendSize, size, blendSize);
+                        break;
+                    case 'left':
+                        ctx.fillRect(screenX, screenY, blendSize, size);
+                        break;
+                    case 'right':
+                        ctx.fillRect(screenX + size - blendSize, screenY, blendSize, size);
+                        break;
+                }
+            }
+            return;
+        }
+
+        // Below is for ocean tiles only - draw white waves
+
+        const directions = [
+            { dx: 0, dy: -1, edge: 'top' },
+            { dx: 0, dy: 1, edge: 'bottom' },
+            { dx: -1, dy: 0, edge: 'left' },
+            { dx: 1, dy: 0, edge: 'right' }
+        ];
+
+        // Cardinal directions
+        for (const dir of directions) {
+            const adjTile = gameState.getTile(tileX + dir.dx, tileY + dir.dy);
+            if (!adjTile || adjTile.terrain === 'Ocean') continue;
+
+            let gradient;
+            switch (dir.edge) {
+                case 'top':
+                    gradient = ctx.createLinearGradient(screenX, screenY, screenX, screenY + blendSize);
+                    break;
+                case 'bottom':
+                    gradient = ctx.createLinearGradient(screenX, screenY + size, screenX, screenY + size - blendSize);
+                    break;
+                case 'left':
+                    gradient = ctx.createLinearGradient(screenX, screenY, screenX + blendSize, screenY);
+                    break;
+                case 'right':
+                    gradient = ctx.createLinearGradient(screenX + size, screenY, screenX + size - blendSize, screenY);
+                    break;
+            }
+
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+            gradient.addColorStop(0.3, 'rgba(200, 230, 255, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            ctx.fillStyle = gradient;
+            switch (dir.edge) {
+                case 'top':
+                    ctx.fillRect(screenX, screenY, size, blendSize);
+                    break;
+                case 'bottom':
+                    ctx.fillRect(screenX, screenY + size - blendSize, size, blendSize);
+                    break;
+                case 'left':
+                    ctx.fillRect(screenX, screenY, blendSize, size);
+                    break;
+                case 'right':
+                    ctx.fillRect(screenX + size - blendSize, screenY, blendSize, size);
+                    break;
+            }
+        }
+
+        // Corner directions - draw radial gradient in corners
+        const corners = [
+            { dx: -1, dy: -1, corner: 'topLeft' },
+            { dx: 1, dy: -1, corner: 'topRight' },
+            { dx: -1, dy: 1, corner: 'bottomLeft' },
+            { dx: 1, dy: 1, corner: 'bottomRight' }
+        ];
+
+        for (const corner of corners) {
+            const diagTile = gameState.getTile(tileX + corner.dx, tileY + corner.dy);
+            if (!diagTile || diagTile.terrain === 'Ocean') continue;
+
+            // Check if adjacent cardinal tiles are ocean (only draw corner if it's a true corner)
+            const horzTile = gameState.getTile(tileX + corner.dx, tileY);
+            const vertTile = gameState.getTile(tileX, tileY + corner.dy);
+            if (horzTile && horzTile.terrain !== 'Ocean') continue;
+            if (vertTile && vertTile.terrain !== 'Ocean') continue;
+
+            let cx, cy;
+            switch (corner.corner) {
+                case 'topLeft':
+                    cx = screenX;
+                    cy = screenY;
+                    break;
+                case 'topRight':
+                    cx = screenX + size;
+                    cy = screenY;
+                    break;
+                case 'bottomLeft':
+                    cx = screenX;
+                    cy = screenY + size;
+                    break;
+                case 'bottomRight':
+                    cx = screenX + size;
+                    cy = screenY + size;
+                    break;
+            }
+
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, blendSize);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+            gradient.addColorStop(0.3, 'rgba(200, 230, 255, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(cx, cy, blendSize, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
