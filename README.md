@@ -1,5 +1,7 @@
 # YaC (Yet Another Civilization)
 
+![YetAnother Civilization](Yet_Another_Civilization.png)
+
 A web-based, single-player strategy game inspired by Civilization 1 (1991), built with Go backend and HTML5 Canvas frontend.
 
 ## Features
