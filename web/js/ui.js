@@ -87,6 +87,12 @@ class UI {
             }
         });
 
+        document.getElementById('btn-build-road').addEventListener('click', () => {
+            if (gameState.selectedUnit && gameState.selectedUnit.can_found_city) {
+                gameSocket.buildRoad(gameState.selectedUnit.id);
+            }
+        });
+
         // City modal close
         this.cityModal.querySelector('.close-btn').addEventListener('click', () => {
             this.hideCityModal();
@@ -423,10 +429,13 @@ class UI {
 
                 // Show/hide found city button
                 const foundCityBtn = document.getElementById('btn-found-city');
+                const buildRoadBtn = document.getElementById('btn-build-road');
                 if (unit.can_found_city) {
                     foundCityBtn.classList.remove('hidden');
+                    buildRoadBtn.classList.remove('hidden');
                 } else {
                     foundCityBtn.classList.add('hidden');
+                    buildRoadBtn.classList.add('hidden');
                 }
 
                 this.updateModeButtons();

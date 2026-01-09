@@ -146,7 +146,7 @@ class Renderer {
 
                 // Draw improvements
                 if (tile.has_road) {
-                    this.drawRoad(screen.x, screen.y, s);
+                    this.drawRoad(screen.x, screen.y, s, x, y);
                 }
 
                 // Draw resources
@@ -918,14 +918,93 @@ class Renderer {
         ctx.fill();
     }
 
-    // Draw road improvement
-    drawRoad(x, y, s) {
+    // Draw road improvement - connects to neighboring roads
+    drawRoad(x, y, s, tileX, tileY) {
         const ctx = this.ctx;
+        const roadWidth = s * 0.22;
+        const centerX = x + s / 2;
+        const centerY = y + s / 2;
+        const halfRoad = roadWidth / 2;
 
-        // Brown road (cross pattern like Civ 1)
-        ctx.fillStyle = '#806040';
-        ctx.fillRect(x + s * 0.4, y, s * 0.2, s);
-        ctx.fillRect(x, y + s * 0.4, s, s * 0.2);
+        // Check which neighbors have roads
+        const hasRoadNorth = this.tileHasRoad(tileX, tileY - 1);
+        const hasRoadSouth = this.tileHasRoad(tileX, tileY + 1);
+        const hasRoadWest = this.tileHasRoad(tileX - 1, tileY);
+        const hasRoadEast = this.tileHasRoad(tileX + 1, tileY);
+
+        // If no neighbors have roads, draw a small circle (road endpoint)
+        const hasAnyConnection = hasRoadNorth || hasRoadSouth || hasRoadWest || hasRoadEast;
+
+        // Draw shadow first
+        ctx.fillStyle = 'rgba(30, 20, 10, 0.6)';
+        if (hasRoadNorth) {
+            ctx.fillRect(centerX - halfRoad + 2, y + 2, roadWidth, s / 2);
+        }
+        if (hasRoadSouth) {
+            ctx.fillRect(centerX - halfRoad + 2, centerY + 2, roadWidth, s / 2);
+        }
+        if (hasRoadWest) {
+            ctx.fillRect(x + 2, centerY - halfRoad + 2, s / 2, roadWidth);
+        }
+        if (hasRoadEast) {
+            ctx.fillRect(centerX + 2, centerY - halfRoad + 2, s / 2, roadWidth);
+        }
+        if (!hasAnyConnection) {
+            // Shadow for endpoint circle
+            ctx.beginPath();
+            ctx.arc(centerX + 2, centerY + 2, roadWidth * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw main road (brown)
+        ctx.fillStyle = '#8B5A2B';
+        if (hasRoadNorth) {
+            ctx.fillRect(centerX - halfRoad, y, roadWidth, s / 2 + halfRoad);
+        }
+        if (hasRoadSouth) {
+            ctx.fillRect(centerX - halfRoad, centerY - halfRoad, roadWidth, s / 2 + halfRoad);
+        }
+        if (hasRoadWest) {
+            ctx.fillRect(x, centerY - halfRoad, s / 2 + halfRoad, roadWidth);
+        }
+        if (hasRoadEast) {
+            ctx.fillRect(centerX - halfRoad, centerY - halfRoad, s / 2 + halfRoad, roadWidth);
+        }
+        if (!hasAnyConnection) {
+            // Endpoint circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, roadWidth * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw center highlight
+        ctx.fillStyle = '#A0724A';
+        const highlightWidth = roadWidth * 0.4;
+        const halfHighlight = highlightWidth / 2;
+        if (hasRoadNorth) {
+            ctx.fillRect(centerX - halfHighlight, y, highlightWidth, s / 2 + halfHighlight);
+        }
+        if (hasRoadSouth) {
+            ctx.fillRect(centerX - halfHighlight, centerY - halfHighlight, highlightWidth, s / 2 + halfHighlight);
+        }
+        if (hasRoadWest) {
+            ctx.fillRect(x, centerY - halfHighlight, s / 2 + halfHighlight, highlightWidth);
+        }
+        if (hasRoadEast) {
+            ctx.fillRect(centerX - halfHighlight, centerY - halfHighlight, s / 2 + halfHighlight, highlightWidth);
+        }
+        if (!hasAnyConnection) {
+            // Endpoint highlight
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, roadWidth * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Check if a tile has a road
+    tileHasRoad(x, y) {
+        const tile = gameState.getTile(x, y);
+        return tile && tile.has_road;
     }
 
     // Render cities

@@ -307,6 +307,13 @@ class InputHandler {
                 }
                 break;
 
+            case 'r':
+            case 'R':
+                if (gameState.selectedUnit && gameState.selectedUnit.can_found_city) {
+                    gameSocket.buildRoad(gameState.selectedUnit.id);
+                }
+                break;
+
             case 's':
             case 'S':
             case ' ': // Space bar to skip

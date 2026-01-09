@@ -439,6 +439,15 @@ func (c *Client) handleAction(payload json.RawMessage) {
 			UnitID: data.UnitID,
 		}
 
+	case "build_road":
+		var data struct {
+			UnitID string `json:"unit_id"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.BuildRoadAction{
+			UnitID: data.UnitID,
+		}
+
 	case "end_turn":
 		action = &game.EndTurnAction{}
 

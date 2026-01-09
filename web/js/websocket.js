@@ -171,6 +171,12 @@ class GameWebSocket {
         });
     }
 
+    buildRoad(unitId) {
+        return this.sendAction('build_road', {
+            unit_id: unitId
+        });
+    }
+
     endTurn() {
         return this.sendAction('end_turn', {});
     }

@@ -362,6 +362,64 @@ func (a *SkipUnitAction) Execute(g *GameState) error {
 	return nil
 }
 
+// BuildRoadAction builds a road on the current tile
+type BuildRoadAction struct {
+	UnitID string `json:"unit_id"`
+}
+
+// Validate checks if a road can be built
+func (a *BuildRoadAction) Validate(g *GameState, playerID string) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	if unit.OwnerID != playerID {
+		return ErrNotYourUnit
+	}
+
+	// Only settlers can build roads
+	if !unit.CanFoundCity() {
+		return errors.New("only settlers can build roads")
+	}
+
+	// Check if there's already a road here
+	tile := g.Map.GetTile(unit.X, unit.Y)
+	if tile == nil {
+		return errors.New("invalid tile")
+	}
+
+	if tile.HasRoad {
+		return errors.New("road already exists")
+	}
+
+	// Can't build roads on water or mountains
+	if tile.IsWater() || tile.Terrain == TerrainMountains {
+		return errors.New("cannot build road here")
+	}
+
+	return nil
+}
+
+// Execute builds the road
+func (a *BuildRoadAction) Execute(g *GameState) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	tile := g.Map.GetTile(unit.X, unit.Y)
+	if tile == nil {
+		return errors.New("invalid tile")
+	}
+
+	tile.HasRoad = true
+	// Building a road uses all movement
+	unit.MovementLeft = 0
+
+	return nil
+}
+
 // EndTurnAction ends the current player's turn
 type EndTurnAction struct{}
 
