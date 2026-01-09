@@ -266,9 +266,9 @@ class Renderer {
         };
 
         // Draw layers from outside in
-        drawRiverShape(2.5, 'rgba(0, 15, 30, 0.5)');      // Outer shadow
-        drawRiverShape(1.8, 'rgba(5, 25, 50, 0.6)');      // Inner shadow
-        drawRiverShape(1.3, '#1a4488');                    // Bank/outline
+        drawRiverShape(2.5, 'rgba(60, 40, 20, 0.5)');      // Outer shadow (brown)
+        drawRiverShape(1.8, 'rgba(80, 50, 25, 0.6)');     // Inner shadow (brown)
+        drawRiverShape(1.3, '#6B4423');                    // Bank/outline (brown)
         drawRiverShape(1.0, '#4499dd');                    // Main water
         drawRiverShape(0.4, 'rgba(102, 187, 255, 0.7)');  // Highlight
 
@@ -403,9 +403,9 @@ class Renderer {
         };
 
         // Draw layers from outside in
-        drawBranchShape(2.0, 'rgba(0, 15, 30, 0.4)');     // Outer shadow
-        drawBranchShape(1.5, 'rgba(5, 25, 50, 0.5)');     // Inner shadow
-        drawBranchShape(1.2, 'rgba(26, 68, 136, 0.9)');   // Bank/outline
+        drawBranchShape(2.0, 'rgba(60, 40, 20, 0.4)');     // Outer shadow (brown)
+        drawBranchShape(1.5, 'rgba(80, 50, 25, 0.5)');    // Inner shadow (brown)
+        drawBranchShape(1.2, 'rgba(107, 68, 35, 0.9)');   // Bank/outline (brown)
         drawBranchShape(1.0, 'rgba(68, 153, 221, 0.9)');  // Main water
     }
 
