@@ -71,6 +71,7 @@ func (g *Generator) Generate() *game.GameMap {
 
 	// Post-processing
 	g.smoothCoastlines(gm)
+	g.generateLakes(gm)           // Add lakes (small ocean clusters) on plains/grassland
 	g.generateRivers(gm)          // Add rivers flowing from highlands to ocean (before removing coastal elevations)
 	g.removeCoastalElevations(gm) // Hills/mountains cannot border ocean
 	g.addForests(gm)              // Add forests only on grassland surrounded by grassland
@@ -547,6 +548,164 @@ func (g *Generator) smoothCoastlines(gm *game.GameMap) {
 	for coord, terrain := range changes {
 		gm.SetTerrain(coord[0], coord[1], terrain)
 	}
+}
+
+// generateLakes creates small lakes (ocean tiles) on plains and grassland
+func (g *Generator) generateLakes(gm *game.GameMap) {
+	log.Println("=== GENERATING LAKES ===")
+
+	// Find suitable locations for lakes (plains or grassland, far from ocean)
+	candidates := make([][2]int, 0)
+
+	for y := 2; y < g.config.Height-2; y++ {
+		for x := 2; x < g.config.Width-2; x++ {
+			tile := gm.GetTile(x, y)
+			if tile == nil {
+				continue
+			}
+			// Only plains or grassland
+			if tile.Terrain != game.TerrainPlains && tile.Terrain != game.TerrainGrassland {
+				continue
+			}
+
+			// Check that it's not too close to ocean (at least 3 tiles away)
+			nearOcean := false
+			for dy := -3; dy <= 3 && !nearOcean; dy++ {
+				for dx := -3; dx <= 3 && !nearOcean; dx++ {
+					neighbor := gm.GetTile(x+dx, y+dy)
+					if neighbor != nil && neighbor.Terrain == game.TerrainOcean {
+						nearOcean = true
+					}
+				}
+			}
+			if nearOcean {
+				continue
+			}
+
+			candidates = append(candidates, [2]int{x, y})
+		}
+	}
+
+	if len(candidates) == 0 {
+		log.Println("No suitable locations for lakes")
+		return
+	}
+
+	// Shuffle candidates
+	g.rng.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
+
+	// Generate 5-15 lakes depending on map size
+	numLakes := 5 + g.rng.Intn(11)
+	mapArea := g.config.Width * g.config.Height
+	numLakes = numLakes * mapArea / 4000 // Scale with map size
+	if numLakes > len(candidates)/10 {
+		numLakes = len(candidates) / 10
+	}
+	if numLakes < 3 {
+		numLakes = 3
+	}
+	if numLakes > 30 {
+		numLakes = 30
+	}
+
+	log.Printf("Generating %d lakes from %d candidates", numLakes, len(candidates))
+
+	usedTiles := make(map[[2]int]bool)
+	lakesCreated := 0
+
+	for _, pos := range candidates {
+		if lakesCreated >= numLakes {
+			break
+		}
+
+		// Check if this position or nearby is already used
+		tooClose := false
+		for dy := -5; dy <= 5 && !tooClose; dy++ {
+			for dx := -5; dx <= 5 && !tooClose; dx++ {
+				if usedTiles[[2]int{pos[0] + dx, pos[1] + dy}] {
+					tooClose = true
+				}
+			}
+		}
+		if tooClose {
+			continue
+		}
+
+		// Create lake (1-4 tiles)
+		lakeSize := 1 + g.rng.Intn(4)
+		lakeTiles := g.createLakeShape(gm, pos[0], pos[1], lakeSize)
+
+		if len(lakeTiles) > 0 {
+			for _, lt := range lakeTiles {
+				gm.SetTerrain(lt[0], lt[1], game.TerrainOcean)
+				usedTiles[lt] = true
+			}
+			lakesCreated++
+		}
+	}
+
+	log.Printf("Created %d lakes", lakesCreated)
+}
+
+// createLakeShape creates an organic lake shape starting from center
+func (g *Generator) createLakeShape(gm *game.GameMap, centerX, centerY, size int) [][2]int {
+	lakeTiles := make([][2]int, 0)
+	lakeTiles = append(lakeTiles, [2]int{centerX, centerY})
+
+	if size == 1 {
+		return lakeTiles
+	}
+
+	// Grow lake organically
+	for len(lakeTiles) < size {
+		// Pick a random existing lake tile
+		baseTile := lakeTiles[g.rng.Intn(len(lakeTiles))]
+
+		// Try to expand in a random cardinal direction
+		dirs := [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
+		g.rng.Shuffle(len(dirs), func(i, j int) {
+			dirs[i], dirs[j] = dirs[j], dirs[i]
+		})
+
+		expanded := false
+		for _, d := range dirs {
+			nx, ny := baseTile[0]+d[0], baseTile[1]+d[1]
+
+			// Check if already in lake
+			alreadyInLake := false
+			for _, lt := range lakeTiles {
+				if lt[0] == nx && lt[1] == ny {
+					alreadyInLake = true
+					break
+				}
+			}
+			if alreadyInLake {
+				continue
+			}
+
+			// Check if valid terrain (plains or grassland)
+			tile := gm.GetTile(nx, ny)
+			if tile == nil {
+				continue
+			}
+			if tile.Terrain != game.TerrainPlains && tile.Terrain != game.TerrainGrassland {
+				continue
+			}
+
+			lakeTiles = append(lakeTiles, [2]int{nx, ny})
+			expanded = true
+			break
+		}
+
+		if !expanded {
+			// Can't expand further
+			break
+		}
+	}
+
+	return lakeTiles
 }
 
 // findContinents identifies all connected land masses using flood fill
