@@ -701,25 +701,49 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 
 		nextTile := gm.GetTile(bestX, bestY)
 		if nextTile != nil && nextTile.Terrain == game.TerrainOcean {
-			// Stop at the border of the ocean tile, not inside it
-			// Calculate edge point between current tile and ocean
-			edgeX := float64(x) + 0.5
-			edgeY := float64(y) + 0.5
+			// Get the last point of the river to calculate straight approach
+			lastPt := river.Points[len(river.Points)-1]
 
-			// Move to the edge facing the ocean
-			if bestX > x {
-				edgeX = float64(x) + 0.95 // Right edge
-			} else if bestX < x {
-				edgeX = float64(x) + 0.05 // Left edge
-			}
-			if bestY > y {
-				edgeY = float64(y) + 0.95 // Bottom edge
-			} else if bestY < y {
-				edgeY = float64(y) + 0.05 // Top edge
+			// Determine if this is a diagonal move (would end at corner)
+			isDiagonal := bestX != x && bestY != y
+
+			if isDiagonal {
+				// For diagonal moves (corner), go into the ocean tile center
+				// but make the final segment straight (align with dominant direction)
+				endX := float64(bestX) + 0.5
+				endY := float64(bestY) + 0.5
+
+				// Make approach straight by aligning one coordinate with previous point
+				if math.Abs(dirX) > math.Abs(dirY) {
+					// Horizontal approach - keep Y aligned with last point
+					endY = lastPt.Y
+				} else {
+					// Vertical approach - keep X aligned with last point
+					endX = lastPt.X
+				}
+
+				river.Points = append(river.Points, game.RiverPoint{X: endX, Y: endY})
+			} else {
+				// Cardinal direction - stop at the edge of current land tile
+				// Make it a straight line by aligning with the last point
+				edgeX := lastPt.X
+				edgeY := lastPt.Y
+
+				if bestX > x {
+					edgeX = float64(x) + 0.95 // Right edge
+				} else if bestX < x {
+					edgeX = float64(x) + 0.05 // Left edge
+				}
+				if bestY > y {
+					edgeY = float64(y) + 0.95 // Bottom edge
+				} else if bestY < y {
+					edgeY = float64(y) + 0.05 // Top edge
+				}
+
+				river.Points = append(river.Points, game.RiverPoint{X: edgeX, Y: edgeY})
 			}
 
-			river.Points = append(river.Points, game.RiverPoint{X: edgeX, Y: edgeY})
-			log.Printf("River reached ocean border, length: %d points", len(river.Points))
+			log.Printf("River reached ocean, length: %d points", len(river.Points))
 			break
 		}
 
@@ -834,23 +858,42 @@ func (g *Generator) addRiverDelta(gm *game.GameMap, river *game.River) {
 			tileX, tileY := int(nextBx), int(nextBy)
 			tile := gm.GetTile(tileX, tileY)
 			if tile != nil && tile.Terrain == game.TerrainOcean {
-				// Stop at the border, not inside the ocean
-				edgeX := bx
-				edgeY := by
+				// Determine if this is a diagonal move (would end at corner)
+				isDiagonal := tileX != prevTileX && tileY != prevTileY
 
-				// Move to edge facing the ocean
-				if tileX > prevTileX {
-					edgeX = float64(prevTileX) + 0.95
-				} else if tileX < prevTileX {
-					edgeX = float64(prevTileX) + 0.05
-				}
-				if tileY > prevTileY {
-					edgeY = float64(prevTileY) + 0.95
-				} else if tileY < prevTileY {
-					edgeY = float64(prevTileY) + 0.05
-				}
+				if isDiagonal {
+					// For diagonal moves (corner), go into the ocean tile
+					// Make the final segment straight
+					endX := float64(tileX) + 0.5
+					endY := float64(tileY) + 0.5
 
-				branch = append(branch, game.RiverPoint{X: edgeX, Y: edgeY})
+					if math.Abs(branchDirX) > math.Abs(branchDirY) {
+						// Horizontal approach - keep Y aligned
+						endY = by
+					} else {
+						// Vertical approach - keep X aligned
+						endX = bx
+					}
+
+					branch = append(branch, game.RiverPoint{X: endX, Y: endY})
+				} else {
+					// Cardinal direction - stop at the edge, straight line
+					edgeX := bx
+					edgeY := by
+
+					if tileX > prevTileX {
+						edgeX = float64(prevTileX) + 0.95
+					} else if tileX < prevTileX {
+						edgeX = float64(prevTileX) + 0.05
+					}
+					if tileY > prevTileY {
+						edgeY = float64(prevTileY) + 0.95
+					} else if tileY < prevTileY {
+						edgeY = float64(prevTileY) + 0.05
+					}
+
+					branch = append(branch, game.RiverPoint{X: edgeX, Y: edgeY})
+				}
 				break
 			}
 
