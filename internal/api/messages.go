@@ -86,6 +86,7 @@ type TileDTO struct {
 	X             int    `json:"x"`
 	Y             int    `json:"y"`
 	Terrain       string `json:"terrain"`
+	Resource      string `json:"resource,omitempty"`
 	HasRoad       bool   `json:"has_road,omitempty"`
 	HasMine       bool   `json:"has_mine,omitempty"`
 	HasIrrigation bool   `json:"has_irrigation,omitempty"`
@@ -191,6 +192,7 @@ func TileToDTO(t *game.Tile) TileDTO {
 		X:             t.X,
 		Y:             t.Y,
 		Terrain:       t.Terrain.String(),
+		Resource:      t.Resource.String(),
 		HasRoad:       t.HasRoad,
 		HasMine:       t.HasMine,
 		HasIrrigation: t.HasIrrigation,
@@ -295,6 +297,38 @@ func TerrainFromString(s string) game.TerrainType {
 	}
 }
 
+// ResourceFromString converts resource string to ResourceType
+func ResourceFromString(s string) game.ResourceType {
+	switch s {
+	case "oil":
+		return game.ResourceOil
+	case "coal":
+		return game.ResourceCoal
+	case "gold":
+		return game.ResourceGold
+	case "iron":
+		return game.ResourceIron
+	case "gems":
+		return game.ResourceGems
+	case "uranium":
+		return game.ResourceUranium
+	case "wheat":
+		return game.ResourceWheat
+	case "horses":
+		return game.ResourceHorses
+	case "fish":
+		return game.ResourceFish
+	case "silk":
+		return game.ResourceSilk
+	case "spices":
+		return game.ResourceSpices
+	case "furs":
+		return game.ResourceFurs
+	default:
+		return game.ResourceNone
+	}
+}
+
 // UnitTypeFromString converts unit type string to UnitType
 func UnitTypeFromString(s string) game.UnitType {
 	switch s {
@@ -363,6 +397,7 @@ func DTOToMap(dto *MapDTO) *game.GameMap {
 		tile := gm.GetTile(t.X, t.Y)
 		if tile != nil {
 			tile.Terrain = TerrainFromString(t.Terrain)
+			tile.Resource = ResourceFromString(t.Resource)
 			tile.HasRoad = t.HasRoad
 			tile.HasMine = t.HasMine
 			tile.HasIrrigation = t.HasIrrigation

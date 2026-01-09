@@ -4,13 +4,15 @@ class SpriteManager {
         this.sprites = {};
         this.terrain = {};
         this.transitions = {};
+        this.resources = {};
         this.loaded = false;
         this.terrainLoaded = false;
         this.transitionsLoaded = false;
+        this.resourcesLoaded = false;
         this.loadPromise = null;
     }
 
-    // Load all sprites (units, terrain, and transitions)
+    // Load all sprites (units, terrain, transitions, and resources)
     loadAll() {
         if (this.loadPromise) {
             return this.loadPromise;
@@ -40,6 +42,10 @@ class SpriteManager {
             // Hills transitions
             'hills_mountains_h'
         ];
+        const resourceTypes = [
+            'oil', 'coal', 'gold', 'iron', 'gems', 'uranium',
+            'wheat', 'horses', 'fish', 'silk', 'spices', 'furs'
+        ];
         const loadPromises = [];
 
         for (const unitType of unitTypes) {
@@ -54,11 +60,16 @@ class SpriteManager {
             loadPromises.push(this.loadTransition(transType, `assets/terrain/transitions/${transType}.png`));
         }
 
+        for (const resourceType of resourceTypes) {
+            loadPromises.push(this.loadResource(resourceType, `assets/resources/${resourceType}.png`));
+        }
+
         this.loadPromise = Promise.all(loadPromises).then(() => {
             this.loaded = true;
             this.terrainLoaded = true;
             this.transitionsLoaded = true;
-            console.log('All sprites, terrain and transitions loaded successfully');
+            this.resourcesLoaded = true;
+            console.log('All sprites, terrain, transitions, and resources loaded successfully');
         }).catch(err => {
             console.warn('Some assets failed to load, using fallback rendering:', err);
         });
@@ -117,6 +128,23 @@ class SpriteManager {
         });
     }
 
+    // Load a resource sprite
+    loadResource(name, path) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                this.resources[name] = img;
+                console.log(`Loaded resource: ${name}`);
+                resolve(img);
+            };
+            img.onerror = (err) => {
+                console.warn(`Failed to load resource: ${name}`);
+                reject(err);
+            };
+            img.src = path;
+        });
+    }
+
     // Get a sprite by unit type name
     getSprite(unitType) {
         const key = unitType.toLowerCase();
@@ -127,6 +155,13 @@ class SpriteManager {
     getTerrain(terrainType) {
         const key = terrainType.toLowerCase();
         return this.terrain[key] || null;
+    }
+
+    // Get a resource sprite by resource type name
+    getResource(resourceType) {
+        if (!resourceType) return null;
+        const key = resourceType.toLowerCase();
+        return this.resources[key] || null;
     }
 
     // Get a transition tile for two adjacent terrain types
@@ -163,6 +198,11 @@ class SpriteManager {
     // Check if transitions are ready
     isTransitionsReady() {
         return this.transitionsLoaded;
+    }
+
+    // Check if resources are ready
+    isResourcesReady() {
+        return this.resourcesLoaded;
     }
 }
 

@@ -10,11 +10,12 @@ import (
 
 // GeneratorConfig holds configuration for map generation
 type GeneratorConfig struct {
-	Width       int
-	Height      int
-	Seed        int64
-	WaterLevel  float64 // 0.0 to 1.0, higher = more water
+	Width         int
+	Height        int
+	Seed          int64
+	WaterLevel    float64 // 0.0 to 1.0, higher = more water
 	MountainLevel float64 // 0.0 to 1.0, higher = more mountains
+	MapType       string  // "random" or "earth"
 }
 
 // DefaultConfig returns a default generator configuration
@@ -56,11 +57,15 @@ func NewGenerator(config GeneratorConfig) *Generator {
 func (g *Generator) Generate() *game.GameMap {
 	gm := game.NewGameMap(g.config.Width, g.config.Height)
 
-	// Generate terrain
-	for y := 0; y < g.config.Height; y++ {
-		for x := 0; x < g.config.Width; x++ {
-			terrain := g.generateTerrain(x, y)
-			gm.SetTerrain(x, y, terrain)
+	if g.config.MapType == "earth" {
+		g.generateEarthLike(gm)
+	} else {
+		// Generate random terrain
+		for y := 0; y < g.config.Height; y++ {
+			for x := 0; x < g.config.Width; x++ {
+				terrain := g.generateTerrain(x, y)
+				gm.SetTerrain(x, y, terrain)
+			}
 		}
 	}
 
@@ -68,8 +73,252 @@ func (g *Generator) Generate() *game.GameMap {
 	g.smoothCoastlines(gm)
 	g.addForests(gm) // Add forests only on grassland surrounded by grassland
 	g.ensurePlayability(gm)
+	g.placeResources(gm) // Add resources to tiles
 
 	return gm
+}
+
+// generateEarthLike creates an Earth-like map with recognizable continents
+func (g *Generator) generateEarthLike(gm *game.GameMap) {
+	w := float64(g.config.Width)
+	h := float64(g.config.Height)
+
+	// Fill with ocean first
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
+			gm.SetTerrain(x, y, game.TerrainOcean)
+		}
+	}
+
+	// Draw continents using polygon shapes (coordinates are 0-1 normalized)
+	// North America - more detailed shape
+	northAmerica := [][]float64{
+		{0.05, 0.12}, {0.12, 0.08}, {0.18, 0.10}, {0.22, 0.15},
+		{0.20, 0.22}, {0.22, 0.28}, {0.18, 0.35}, {0.20, 0.42},
+		{0.15, 0.45}, {0.10, 0.40}, {0.08, 0.32}, {0.05, 0.28},
+		{0.03, 0.20}, {0.05, 0.12},
+	}
+	g.drawPolygonContinent(gm, northAmerica)
+
+	// Central America
+	centralAmerica := [][]float64{
+		{0.15, 0.45}, {0.18, 0.48}, {0.16, 0.52}, {0.17, 0.56},
+		{0.15, 0.55}, {0.13, 0.50}, {0.15, 0.45},
+	}
+	g.drawPolygonContinent(gm, centralAmerica)
+
+	// South America
+	southAmerica := [][]float64{
+		{0.17, 0.56}, {0.22, 0.55}, {0.26, 0.60}, {0.28, 0.68},
+		{0.26, 0.78}, {0.22, 0.88}, {0.20, 0.92}, {0.18, 0.88},
+		{0.16, 0.78}, {0.15, 0.68}, {0.16, 0.60}, {0.17, 0.56},
+	}
+	g.drawPolygonContinent(gm, southAmerica)
+
+	// Europe
+	europe := [][]float64{
+		{0.42, 0.12}, {0.48, 0.10}, {0.52, 0.12}, {0.55, 0.15},
+		{0.52, 0.20}, {0.50, 0.25}, {0.48, 0.28}, {0.45, 0.32},
+		{0.42, 0.30}, {0.40, 0.25}, {0.38, 0.20}, {0.40, 0.15},
+		{0.42, 0.12},
+	}
+	g.drawPolygonContinent(gm, europe)
+
+	// Africa
+	africa := [][]float64{
+		{0.42, 0.32}, {0.48, 0.30}, {0.55, 0.35}, {0.58, 0.42},
+		{0.56, 0.52}, {0.54, 0.62}, {0.50, 0.72}, {0.46, 0.75},
+		{0.42, 0.70}, {0.40, 0.60}, {0.38, 0.50}, {0.40, 0.40},
+		{0.42, 0.32},
+	}
+	g.drawPolygonContinent(gm, africa)
+
+	// Asia - large landmass
+	asia := [][]float64{
+		{0.55, 0.15}, {0.62, 0.10}, {0.72, 0.08}, {0.82, 0.12},
+		{0.88, 0.18}, {0.92, 0.25}, {0.90, 0.32}, {0.85, 0.38},
+		{0.78, 0.42}, {0.72, 0.45}, {0.65, 0.42}, {0.60, 0.38},
+		{0.58, 0.32}, {0.55, 0.25}, {0.55, 0.15},
+	}
+	g.drawPolygonContinent(gm, asia)
+
+	// India
+	india := [][]float64{
+		{0.65, 0.42}, {0.70, 0.45}, {0.72, 0.52}, {0.68, 0.58},
+		{0.64, 0.55}, {0.62, 0.48}, {0.65, 0.42},
+	}
+	g.drawPolygonContinent(gm, india)
+
+	// Southeast Asia
+	seAsia := [][]float64{
+		{0.78, 0.42}, {0.82, 0.45}, {0.80, 0.55}, {0.76, 0.52},
+		{0.78, 0.42},
+	}
+	g.drawPolygonContinent(gm, seAsia)
+
+	// Australia
+	australia := [][]float64{
+		{0.82, 0.62}, {0.90, 0.60}, {0.95, 0.65}, {0.94, 0.72},
+		{0.88, 0.78}, {0.82, 0.75}, {0.80, 0.68}, {0.82, 0.62},
+	}
+	g.drawPolygonContinent(gm, australia)
+
+	// Greenland
+	greenland := [][]float64{
+		{0.32, 0.05}, {0.38, 0.04}, {0.40, 0.08}, {0.38, 0.15},
+		{0.34, 0.14}, {0.32, 0.10}, {0.32, 0.05},
+	}
+	g.drawPolygonContinent(gm, greenland)
+
+	// British Isles
+	britain := [][]float64{
+		{0.38, 0.18}, {0.40, 0.16}, {0.41, 0.20}, {0.39, 0.22},
+		{0.38, 0.18},
+	}
+	g.drawPolygonContinent(gm, britain)
+
+	// Japan
+	japan := [][]float64{
+		{0.88, 0.28}, {0.90, 0.25}, {0.92, 0.28}, {0.91, 0.35},
+		{0.89, 0.32}, {0.88, 0.28},
+	}
+	g.drawPolygonContinent(gm, japan)
+
+	// Add terrain variety based on climate
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
+			tile := gm.GetTile(x, y)
+			if tile == nil || tile.Terrain == game.TerrainOcean {
+				continue
+			}
+
+			nx := float64(x) / w * 6
+			ny := float64(y) / h * 6
+			moisture := g.moistureNoise.Noise2D(nx, ny)
+			elevation := g.elevationNoise.Noise2D(nx*2, ny*2)
+
+			// Latitude affects climate (0 at equator, 1 at poles)
+			lat := math.Abs(float64(y)/h-0.5) * 2
+
+			// Mountain ranges
+			if elevation > 0.55 {
+				tile.Terrain = game.TerrainMountains
+			} else if elevation > 0.35 {
+				tile.Terrain = game.TerrainHills
+			} else if lat > 0.15 && lat < 0.40 && moisture < 0.35 {
+				// Desert bands (Sahara, Arabian, Australian outback)
+				tile.Terrain = game.TerrainDesert
+			} else if moisture < 0.3 {
+				tile.Terrain = game.TerrainPlains
+			}
+			// else keep as grassland
+		}
+	}
+}
+
+// drawPolygonContinent draws a continent using polygon vertices
+func (g *Generator) drawPolygonContinent(gm *game.GameMap, vertices [][]float64) {
+	w := float64(g.config.Width)
+	h := float64(g.config.Height)
+
+	// Convert normalized coords to pixel coords
+	pixelVerts := make([][]float64, len(vertices))
+	for i, v := range vertices {
+		pixelVerts[i] = []float64{v[0] * w, v[1] * h}
+	}
+
+	// Find bounding box
+	minX, minY := pixelVerts[0][0], pixelVerts[0][1]
+	maxX, maxY := minX, minY
+	for _, v := range pixelVerts {
+		if v[0] < minX {
+			minX = v[0]
+		}
+		if v[0] > maxX {
+			maxX = v[0]
+		}
+		if v[1] < minY {
+			minY = v[1]
+		}
+		if v[1] > maxY {
+			maxY = v[1]
+		}
+	}
+
+	// Expand bounds slightly for coastline noise
+	margin := 5.0
+	minX = math.Max(0, minX-margin)
+	minY = math.Max(0, minY-margin)
+	maxX = math.Min(w, maxX+margin)
+	maxY = math.Min(h, maxY+margin)
+
+	// Fill polygon with coastline noise
+	for y := int(minY); y < int(maxY); y++ {
+		for x := int(minX); x < int(maxX); x++ {
+			if x < 0 || x >= g.config.Width || y < 0 || y >= g.config.Height {
+				continue
+			}
+
+			// Check if point is inside polygon
+			dist := g.pointToPolygonDistance(float64(x), float64(y), pixelVerts)
+
+			// Add noise to coastlines
+			nx := float64(x) / w * 12
+			ny := float64(y) / h * 12
+			noise := g.elevationNoise.Noise2D(nx, ny) * 4
+
+			// Land if inside polygon (with noisy coastline)
+			if dist < noise {
+				gm.SetTerrain(x, y, game.TerrainGrassland)
+			}
+		}
+	}
+}
+
+// pointToPolygonDistance returns negative if inside, positive if outside
+func (g *Generator) pointToPolygonDistance(px, py float64, vertices [][]float64) float64 {
+	inside := false
+	minDist := math.MaxFloat64
+
+	n := len(vertices)
+	for i := 0; i < n; i++ {
+		j := (i + 1) % n
+		xi, yi := vertices[i][0], vertices[i][1]
+		xj, yj := vertices[j][0], vertices[j][1]
+
+		// Ray casting for inside/outside
+		if ((yi > py) != (yj > py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi) {
+			inside = !inside
+		}
+
+		// Distance to edge
+		dist := g.pointToSegmentDistance(px, py, xi, yi, xj, yj)
+		if dist < minDist {
+			minDist = dist
+		}
+	}
+
+	if inside {
+		return -minDist
+	}
+	return minDist
+}
+
+// pointToSegmentDistance calculates distance from point to line segment
+func (g *Generator) pointToSegmentDistance(px, py, x1, y1, x2, y2 float64) float64 {
+	dx := x2 - x1
+	dy := y2 - y1
+	length := dx*dx + dy*dy
+
+	if length == 0 {
+		return math.Sqrt((px-x1)*(px-x1) + (py-y1)*(py-y1))
+	}
+
+	t := math.Max(0, math.Min(1, ((px-x1)*dx+(py-y1)*dy)/length))
+	projX := x1 + t*dx
+	projY := y1 + t*dy
+
+	return math.Sqrt((px-projX)*(px-projX) + (py-projY)*(py-projY))
 }
 
 // generateTerrain determines the terrain type for a tile
@@ -263,6 +512,59 @@ func (g *Generator) smoothCoastlines(gm *game.GameMap) {
 	// Apply changes
 	for coord, terrain := range changes {
 		gm.SetTerrain(coord[0], coord[1], terrain)
+	}
+}
+
+// placeResources scatters resources across the map on valid terrain
+func (g *Generator) placeResources(gm *game.GameMap) {
+	// Resource placement frequency (lower = more rare)
+	resourceChance := 0.03 // 3% chance per valid tile
+
+	// List of all resource types
+	resourceTypes := []game.ResourceType{
+		game.ResourceOil,
+		game.ResourceCoal,
+		game.ResourceGold,
+		game.ResourceIron,
+		game.ResourceGems,
+		game.ResourceUranium,
+		game.ResourceWheat,
+		game.ResourceHorses,
+		game.ResourceFish,
+		game.ResourceSilk,
+		game.ResourceSpices,
+		game.ResourceFurs,
+	}
+
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
+			tile := gm.GetTile(x, y)
+			if tile == nil {
+				continue
+			}
+
+			// Skip if random chance not met
+			if g.rng.Float64() > resourceChance {
+				continue
+			}
+
+			// Find valid resources for this terrain
+			validResources := make([]game.ResourceType, 0)
+			for _, resType := range resourceTypes {
+				validTerrains := game.ValidTerrainForResource[resType]
+				for _, terrain := range validTerrains {
+					if terrain == tile.Terrain {
+						validResources = append(validResources, resType)
+						break
+					}
+				}
+			}
+
+			// Place a random valid resource
+			if len(validResources) > 0 {
+				tile.Resource = validResources[g.rng.Intn(len(validResources))]
+			}
+		}
 	}
 }
 

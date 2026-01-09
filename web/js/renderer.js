@@ -129,7 +129,7 @@ class Renderer {
             }
         }
 
-        // Third pass: draw grid and improvements
+        // Third pass: draw grid, improvements, and resources
         for (let y = range.startY; y < range.endY; y++) {
             for (let x = range.startX; x < range.endX; x++) {
                 const tile = gameState.getTile(x, y);
@@ -147,7 +147,26 @@ class Renderer {
                 if (tile.has_road) {
                     this.drawRoad(screen.x, screen.y, s);
                 }
+
+                // Draw resources
+                if (tile.resource && tile.resource !== '') {
+                    this.drawResource(tile.resource, screen.x, screen.y, s);
+                }
             }
+        }
+    }
+
+    // Draw resource icon on tile
+    drawResource(resourceType, x, y, s) {
+        if (!spriteManager || !spriteManager.isResourcesReady()) return;
+
+        const resourceSprite = spriteManager.getResource(resourceType);
+        if (resourceSprite) {
+            // Draw resource icon centered on tile, slightly smaller
+            const iconSize = s * 0.6;
+            const iconX = x + (s - iconSize) / 2;
+            const iconY = y + (s - iconSize) / 2;
+            this.ctx.drawImage(resourceSprite, iconX, iconY, iconSize, iconSize);
         }
     }
 

@@ -127,8 +127,16 @@ class UI {
             this.showUnitsGallery();
         });
 
+        document.getElementById('menu-view-resources').addEventListener('click', () => {
+            this.showResourcesGallery();
+        });
+
         document.getElementById('units-modal-close').addEventListener('click', () => {
             document.getElementById('units-modal').classList.add('hidden');
+        });
+
+        document.getElementById('resources-modal-close').addEventListener('click', () => {
+            document.getElementById('resources-modal').classList.add('hidden');
         });
 
         // Toolbar handlers
@@ -282,18 +290,46 @@ class UI {
         modal.classList.remove('hidden');
     }
 
+    // Show resources gallery modal
+    showResourcesGallery() {
+        const modal = document.getElementById('resources-modal');
+        const gallery = document.getElementById('resources-gallery');
+
+        // List of all available resources
+        const resources = [
+            'oil', 'coal', 'gold', 'iron', 'gems', 'uranium',
+            'wheat', 'horses', 'fish', 'silk', 'spices', 'furs'
+        ];
+
+        gallery.innerHTML = resources.map(resource => `
+            <div class="unit-card">
+                <img src="assets/resources/${resource}.png" alt="${resource}">
+                <span class="unit-name">${resource}</span>
+            </div>
+        `).join('');
+
+        modal.classList.remove('hidden');
+    }
+
     startGame() {
         const playerName = document.getElementById('player-name').value || 'Player';
         const mapSize = document.getElementById('map-size').value;
+        const mapType = document.getElementById('map-type').value;
         const opponents = parseInt(document.getElementById('opponents').value);
 
-        const size = Config.MAP_SIZES[mapSize];
+        let size = Config.MAP_SIZES[mapSize];
+
+        // Earth-like maps use fixed larger size for realism
+        if (mapType === 'earth') {
+            size = { width: 160, height: 80 };
+        }
 
         const config = {
             map_width: size.width,
             map_height: size.height,
             player_count: opponents + 1,
             player_name: playerName,
+            map_type: mapType,
             seed: 0
         };
 

@@ -71,3 +71,93 @@ var TerrainProductionYield = map[TerrainType]int{
 	TerrainMountains: 1,
 	TerrainForest:    2,
 }
+
+// ResourceType represents a map resource
+type ResourceType int
+
+const (
+	ResourceNone ResourceType = iota
+	ResourceOil
+	ResourceCoal
+	ResourceGold
+	ResourceIron
+	ResourceGems
+	ResourceUranium
+	ResourceWheat
+	ResourceHorses
+	ResourceFish
+	ResourceSilk
+	ResourceSpices
+	ResourceFurs
+)
+
+// String returns the string representation of a resource type
+func (r ResourceType) String() string {
+	switch r {
+	case ResourceOil:
+		return "oil"
+	case ResourceCoal:
+		return "coal"
+	case ResourceGold:
+		return "gold"
+	case ResourceIron:
+		return "iron"
+	case ResourceGems:
+		return "gems"
+	case ResourceUranium:
+		return "uranium"
+	case ResourceWheat:
+		return "wheat"
+	case ResourceHorses:
+		return "horses"
+	case ResourceFish:
+		return "fish"
+	case ResourceSilk:
+		return "silk"
+	case ResourceSpices:
+		return "spices"
+	case ResourceFurs:
+		return "furs"
+	default:
+		return ""
+	}
+}
+
+// ResourceBonus defines the bonus yields for each resource
+type ResourceBonus struct {
+	Food       int
+	Production int
+	Trade      int
+}
+
+// ResourceBonuses maps resource types to their yield bonuses
+var ResourceBonuses = map[ResourceType]ResourceBonus{
+	ResourceOil:     {Food: 0, Production: 3, Trade: 0},
+	ResourceCoal:    {Food: 0, Production: 2, Trade: 0},
+	ResourceGold:    {Food: 0, Production: 0, Trade: 4},
+	ResourceIron:    {Food: 0, Production: 2, Trade: 0},
+	ResourceGems:    {Food: 0, Production: 0, Trade: 3},
+	ResourceUranium: {Food: 0, Production: 3, Trade: 0},
+	ResourceWheat:   {Food: 3, Production: 0, Trade: 0},
+	ResourceHorses:  {Food: 1, Production: 1, Trade: 1},
+	ResourceFish:    {Food: 3, Production: 0, Trade: 0},
+	ResourceSilk:    {Food: 0, Production: 0, Trade: 3},
+	ResourceSpices:  {Food: 0, Production: 0, Trade: 2},
+	ResourceFurs:    {Food: 1, Production: 0, Trade: 2},
+}
+
+// ValidTerrainForResource defines which terrains can have each resource
+var ValidTerrainForResource = map[ResourceType][]TerrainType{
+	ResourceOil:     {TerrainDesert, TerrainPlains, TerrainOcean},
+	ResourceCoal:    {TerrainHills, TerrainMountains},
+	ResourceGold:    {TerrainHills, TerrainMountains, TerrainDesert},
+	ResourceIron:    {TerrainHills, TerrainMountains},
+	ResourceGems:    {TerrainHills, TerrainMountains, TerrainForest},
+	ResourceUranium: {TerrainHills, TerrainMountains, TerrainDesert},
+	ResourceWheat:   {TerrainGrassland, TerrainPlains},
+	ResourceHorses:  {TerrainGrassland, TerrainPlains},
+	ResourceFish:    {TerrainOcean},
+	ResourceSilk:    {TerrainForest, TerrainGrassland},
+	ResourceSpices:  {TerrainForest, TerrainGrassland},
+	ResourceFurs:    {TerrainForest},
+}

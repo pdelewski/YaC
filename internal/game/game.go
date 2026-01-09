@@ -49,11 +49,12 @@ func (p GamePhase) String() string {
 
 // GameConfig holds configuration for creating a new game
 type GameConfig struct {
-	MapWidth    int   `json:"map_width"`
-	MapHeight   int   `json:"map_height"`
-	Seed        int64 `json:"seed"`
-	PlayerCount int   `json:"player_count"` // Total players including human
+	MapWidth    int    `json:"map_width"`
+	MapHeight   int    `json:"map_height"`
+	Seed        int64  `json:"seed"`
+	PlayerCount int    `json:"player_count"` // Total players including human
 	PlayerName  string `json:"player_name"`
+	MapType     string `json:"map_type"` // "random" or "earth"
 }
 
 // DefaultGameConfig returns a default game configuration

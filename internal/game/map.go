@@ -37,12 +37,13 @@ func (t TerrainType) String() string {
 
 // Tile represents a single map tile
 type Tile struct {
-	X             int         `json:"x"`
-	Y             int         `json:"y"`
-	Terrain       TerrainType `json:"terrain"`
-	HasRoad       bool        `json:"has_road"`
-	HasMine       bool        `json:"has_mine"`
-	HasIrrigation bool        `json:"has_irrigation"`
+	X             int          `json:"x"`
+	Y             int          `json:"y"`
+	Terrain       TerrainType  `json:"terrain"`
+	Resource      ResourceType `json:"resource"`
+	HasRoad       bool         `json:"has_road"`
+	HasMine       bool         `json:"has_mine"`
+	HasIrrigation bool         `json:"has_irrigation"`
 }
 
 // MovementCost returns the movement cost to enter this tile
@@ -60,6 +61,10 @@ func (t *Tile) FoodYield() int {
 	if t.HasIrrigation {
 		yield++
 	}
+	// Add resource bonus
+	if bonus, ok := ResourceBonuses[t.Resource]; ok {
+		yield += bonus.Food
+	}
 	return yield
 }
 
@@ -68,6 +73,23 @@ func (t *Tile) ProductionYield() int {
 	yield := TerrainProductionYield[t.Terrain]
 	if t.HasMine {
 		yield++
+	}
+	// Add resource bonus
+	if bonus, ok := ResourceBonuses[t.Resource]; ok {
+		yield += bonus.Production
+	}
+	return yield
+}
+
+// TradeYield returns the trade (gold) of this tile
+func (t *Tile) TradeYield() int {
+	yield := 0
+	if t.HasRoad {
+		yield++
+	}
+	// Add resource bonus
+	if bonus, ok := ResourceBonuses[t.Resource]; ok {
+		yield += bonus.Trade
 	}
 	return yield
 }

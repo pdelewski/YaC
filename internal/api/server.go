@@ -41,11 +41,12 @@ func (s *Server) NewGame(config game.GameConfig) {
 
 	// Generate map with players
 	mapConfig := mapgen.GeneratorConfig{
-		Width:       config.MapWidth,
-		Height:      config.MapHeight,
-		Seed:        config.Seed,
-		WaterLevel:  0.35,
+		Width:         config.MapWidth,
+		Height:        config.MapHeight,
+		Seed:          config.Seed,
+		WaterLevel:    0.35,
 		MountainLevel: 0.75,
+		MapType:       config.MapType,
 	}
 
 	gm := mapgen.GenerateWithPlayers(mapConfig, s.game.Players)
