@@ -55,6 +55,8 @@ func (s *Server) SetupRoutes() http.Handler {
 	// API routes
 	mux.HandleFunc("/api/game/new", s.handleNewGame)
 	mux.HandleFunc("/api/game", s.handleGetGame)
+	mux.HandleFunc("/api/game/save", s.handleSaveGame)
+	mux.HandleFunc("/api/game/load", s.handleLoadGame)
 
 	// WebSocket
 	mux.HandleFunc("/ws", s.handleWebSocket)
@@ -130,6 +132,42 @@ func (s *Server) handleGetGame(w http.ResponseWriter, r *http.Request) {
 	state := GameStateToDTO(s.game)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(state)
+}
+
+// handleSaveGame returns the current game state for saving
+func (s *Server) handleSaveGame(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.game == nil {
+		http.Error(w, "No game in progress", http.StatusNotFound)
+		return
+	}
+
+	state := GameStateToDTO(s.game)
+	response := map[string]interface{}{
+		"success":   true,
+		"save_data": state,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleLoadGame loads a game from save data
+func (s *Server) handleLoadGame(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// TODO: Implement full game state restoration
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": false,
+		"error":   "Load game is not yet implemented",
+	})
 }
 
 // handleWebSocket handles WebSocket upgrade requests

@@ -40,6 +40,39 @@
 
         <!-- Game Screen -->
         <div id="game-screen" class="screen hidden">
+            <!-- Menu Bar -->
+            <div id="menu-bar">
+                <div class="menu-item">
+                    <span class="menu-title">File</span>
+                    <div class="menu-dropdown">
+                        <div class="menu-option" id="menu-new">New Game</div>
+                        <div class="menu-option" id="menu-open">Open...</div>
+                        <div class="menu-option" id="menu-save">Save</div>
+                        <div class="menu-separator"></div>
+                        <div class="menu-option" id="menu-quit">Quit</div>
+                    </div>
+                </div>
+                <div class="menu-item">
+                    <span class="menu-title">View</span>
+                    <div class="menu-dropdown">
+                        <div class="menu-option" id="menu-center-unit">Center on Unit</div>
+                        <div class="menu-option" id="menu-find-city">Find City</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div id="toolbar">
+                <button class="toolbar-btn" id="tb-new" title="New Game">🗺️</button>
+                <button class="toolbar-btn" id="tb-open" title="Open">📂</button>
+                <button class="toolbar-btn" id="tb-save" title="Save">💾</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" id="tb-center" title="Center on Unit (C)">🎯</button>
+                <button class="toolbar-btn" id="tb-next-unit" title="Next Unit (Tab)">⏭️</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" id="tb-end-turn" title="End Turn (Enter)">✅</button>
+            </div>
+
             <!-- Top Bar -->
             <div id="top-bar">
                 <div id="turn-info">

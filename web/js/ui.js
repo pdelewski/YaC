@@ -87,6 +87,144 @@ class UI {
             this.hideGameOverModal();
             this.showStartScreen();
         });
+
+        // Menu handlers
+        document.getElementById('menu-new').addEventListener('click', () => {
+            if (confirm('Start a new game? Current progress will be lost.')) {
+                this.showStartScreen();
+            }
+        });
+
+        document.getElementById('menu-open').addEventListener('click', () => {
+            this.openSaveFile();
+        });
+
+        document.getElementById('menu-save').addEventListener('click', () => {
+            this.saveGame();
+        });
+
+        document.getElementById('menu-quit').addEventListener('click', () => {
+            if (confirm('Quit to main menu?')) {
+                this.showStartScreen();
+            }
+        });
+
+        document.getElementById('menu-center-unit').addEventListener('click', () => {
+            if (gameState.selectedUnit) {
+                renderer.centerOn(gameState.selectedUnit.x, gameState.selectedUnit.y);
+            }
+        });
+
+        document.getElementById('menu-find-city').addEventListener('click', () => {
+            const myPlayer = gameState.getMyPlayer();
+            if (myPlayer && myPlayer.cities && myPlayer.cities.length > 0) {
+                const city = myPlayer.cities[0];
+                renderer.centerOn(city.x, city.y);
+            }
+        });
+
+        // Toolbar handlers
+        document.getElementById('tb-new').addEventListener('click', () => {
+            if (confirm('Start a new game? Current progress will be lost.')) {
+                this.showStartScreen();
+            }
+        });
+
+        document.getElementById('tb-open').addEventListener('click', () => {
+            this.openSaveFile();
+        });
+
+        document.getElementById('tb-save').addEventListener('click', () => {
+            this.saveGame();
+        });
+
+        document.getElementById('tb-center').addEventListener('click', () => {
+            if (gameState.selectedUnit) {
+                renderer.centerOn(gameState.selectedUnit.x, gameState.selectedUnit.y);
+            } else if (gameState.selectedCity) {
+                renderer.centerOn(gameState.selectedCity.x, gameState.selectedCity.y);
+            }
+        });
+
+        document.getElementById('tb-next-unit').addEventListener('click', () => {
+            inputHandler.selectNextUnit();
+        });
+
+        document.getElementById('tb-end-turn').addEventListener('click', () => {
+            if (gameState.isMyTurn()) {
+                gameSocket.endTurn();
+            }
+        });
+    }
+
+    // Save game to file
+    saveGame() {
+        fetch(Config.API.SAVE_GAME, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.save_data) {
+                const blob = new Blob([JSON.stringify(data.save_data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `civilization_save_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        })
+        .catch(error => {
+            console.error('Error saving game:', error);
+            alert('Failed to save game.');
+        });
+    }
+
+    // Open save file
+    openSaveFile() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const saveData = JSON.parse(event.target.result);
+                        this.loadGame(saveData);
+                    } catch (err) {
+                        alert('Invalid save file.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+        input.click();
+    }
+
+    // Load game from save data
+    loadGame(saveData) {
+        fetch(Config.API.LOAD_GAME, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(saveData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                gameSocket.connect();
+                this.showGameScreen();
+            } else {
+                alert('Failed to load game: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading game:', error);
+            alert('Failed to load game.');
+        });
     }
 
     startGame() {
