@@ -65,9 +65,8 @@ func (g *Generator) Generate() *game.GameMap {
 	}
 
 	// Post-processing
-	g.addForests(gm)
-	g.removeCoastalForests(gm) // Forests shouldn't border ocean directly
 	g.smoothCoastlines(gm)
+	g.addForests(gm) // Add forests only on grassland surrounded by grassland
 	g.ensurePlayability(gm)
 
 	return gm
@@ -149,6 +148,7 @@ func (g *Generator) applyIslandGradient(x, y int, elevation float64) float64 {
 }
 
 // addForests adds forest terrain to suitable tiles
+// Forests are only placed on grassland tiles that are completely surrounded by grassland
 func (g *Generator) addForests(gm *game.GameMap) {
 	for y := 0; y < g.config.Height; y++ {
 		for x := 0; x < g.config.Width; x++ {
@@ -159,6 +159,19 @@ func (g *Generator) addForests(gm *game.GameMap) {
 
 			// Only add forests to grassland
 			if tile.Terrain != game.TerrainGrassland {
+				continue
+			}
+
+			// Check if all neighbors are grassland
+			neighbors := gm.GetNeighbors(x, y)
+			allGrassland := true
+			for _, n := range neighbors {
+				if n.Terrain != game.TerrainGrassland {
+					allGrassland = false
+					break
+				}
+			}
+			if !allGrassland {
 				continue
 			}
 
