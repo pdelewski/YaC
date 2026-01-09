@@ -1580,23 +1580,95 @@ class Renderer {
         }
     }
 
+    // Check if a line segment intersects a rectangle (tile)
+    lineIntersectsTile(x1, y1, x2, y2, tileX, tileY) {
+        const left = tileX;
+        const right = tileX + 1;
+        const top = tileY;
+        const bottom = tileY + 1;
+
+        // Check if either endpoint is inside the tile
+        if ((x1 >= left && x1 < right && y1 >= top && y1 < bottom) ||
+            (x2 >= left && x2 < right && y2 >= top && y2 < bottom)) {
+            return true;
+        }
+
+        // Check if line crosses any of the tile edges
+        // Left edge
+        if (this.lineSegmentsIntersect(x1, y1, x2, y2, left, top, left, bottom)) return true;
+        // Right edge
+        if (this.lineSegmentsIntersect(x1, y1, x2, y2, right, top, right, bottom)) return true;
+        // Top edge
+        if (this.lineSegmentsIntersect(x1, y1, x2, y2, left, top, right, top)) return true;
+        // Bottom edge
+        if (this.lineSegmentsIntersect(x1, y1, x2, y2, left, bottom, right, bottom)) return true;
+
+        return false;
+    }
+
+    // Check if two line segments intersect
+    lineSegmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+        const d1 = this.direction(x3, y3, x4, y4, x1, y1);
+        const d2 = this.direction(x3, y3, x4, y4, x2, y2);
+        const d3 = this.direction(x1, y1, x2, y2, x3, y3);
+        const d4 = this.direction(x1, y1, x2, y2, x4, y4);
+
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+            ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+            return true;
+        }
+
+        if (d1 === 0 && this.onSegment(x3, y3, x4, y4, x1, y1)) return true;
+        if (d2 === 0 && this.onSegment(x3, y3, x4, y4, x2, y2)) return true;
+        if (d3 === 0 && this.onSegment(x1, y1, x2, y2, x3, y3)) return true;
+        if (d4 === 0 && this.onSegment(x1, y1, x2, y2, x4, y4)) return true;
+
+        return false;
+    }
+
+    direction(xi, yi, xj, yj, xk, yk) {
+        return (xk - xi) * (yj - yi) - (xj - xi) * (yk - yi);
+    }
+
+    onSegment(xi, yi, xj, yj, xk, yk) {
+        return Math.min(xi, xj) <= xk && xk <= Math.max(xi, xj) &&
+               Math.min(yi, yj) <= yk && yk <= Math.max(yi, yj);
+    }
+
     // Check if a tile has a river passing through it
     tileHasRiver(tileX, tileY) {
         if (!gameState.map || !gameState.map.rivers) return false;
 
-        for (const river of gameState.map.rivers) {
-            if (!river.points) continue;
-            for (const point of river.points) {
-                // Check if river point is within this tile (using floor to get tile coords)
-                if (Math.floor(point.x) === tileX && Math.floor(point.y) === tileY) {
+        const checkPoints = (points) => {
+            if (!points || points.length === 0) return false;
+
+            // Check individual points
+            for (const point of points) {
+                if (point.x >= tileX && point.x < tileX + 1 &&
+                    point.y >= tileY && point.y < tileY + 1) {
                     return true;
                 }
-                // Also check if river passes through tile (within 0.5 of tile center)
-                const centerX = tileX + 0.5;
-                const centerY = tileY + 0.5;
-                const dist = Math.sqrt((point.x - centerX) ** 2 + (point.y - centerY) ** 2);
-                if (dist < 0.7) {
+            }
+
+            // Check line segments between consecutive points
+            for (let i = 0; i < points.length - 1; i++) {
+                if (this.lineIntersectsTile(
+                    points[i].x, points[i].y,
+                    points[i + 1].x, points[i + 1].y,
+                    tileX, tileY)) {
                     return true;
+                }
+            }
+            return false;
+        };
+
+        for (const river of gameState.map.rivers) {
+            if (checkPoints(river.points)) return true;
+
+            // Also check delta branches
+            if (river.delta) {
+                for (const branch of river.delta) {
+                    if (checkPoints(branch)) return true;
                 }
             }
         }
@@ -1618,8 +1690,8 @@ class Renderer {
         // Build tooltip text
         let tooltipText = tile.terrain;
 
-        // Check for river
-        if (tile.has_river || this.tileHasRiver(tileX, tileY)) {
+        // Check for river (only use accurate point check, not tile.has_river which includes neighbors)
+        if (this.tileHasRiver(tileX, tileY)) {
             tooltipText += ' + River';
         }
 
