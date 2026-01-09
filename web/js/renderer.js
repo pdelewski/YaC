@@ -272,6 +272,24 @@ class Renderer {
         drawRiverShape(1.0, '#4499dd');                    // Main water
         drawRiverShape(0.4, 'rgba(102, 187, 255, 0.7)');  // Highlight
 
+        // Draw white foam/shadow at river source (spring effect)
+        const startPoint = screenPoints[0];
+        const startWidth = widths[0];
+        const springSize = startWidth * 2.5;
+
+        const springGradient = ctx.createRadialGradient(
+            startPoint.x, startPoint.y, 0,
+            startPoint.x, startPoint.y, springSize
+        );
+        springGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+        springGradient.addColorStop(0.4, 'rgba(200, 230, 255, 0.3)');
+        springGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.beginPath();
+        ctx.arc(startPoint.x, startPoint.y, springSize, 0, Math.PI * 2);
+        ctx.fillStyle = springGradient;
+        ctx.fill();
+
         // Draw white foam/shadow at river end only if it touches ocean
         const endPoint = screenPoints[numPoints - 1];
         const endWidth = widths[numPoints - 1];
