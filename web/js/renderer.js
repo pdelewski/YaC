@@ -217,22 +217,22 @@ class Renderer {
             const cp2x = p2.x - (p3.x - p1.x) / 6;
             const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-            // Draw soft outer shadow (dark, wide, transparent)
+            // Draw soft outer shadow (dark, wide)
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = 'rgba(0, 20, 40, 0.3)';
-            ctx.lineWidth = Math.max(4, avgWidth + 6);
+            ctx.strokeStyle = 'rgba(0, 15, 30, 0.6)';
+            ctx.lineWidth = Math.max(6, avgWidth + 10);
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
 
-            // Draw inner shadow (slightly darker blue)
+            // Draw inner shadow (darker)
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = 'rgba(10, 40, 80, 0.5)';
-            ctx.lineWidth = Math.max(3, avgWidth + 4);
+            ctx.strokeStyle = 'rgba(5, 25, 50, 0.7)';
+            ctx.lineWidth = Math.max(4, avgWidth + 6);
             ctx.stroke();
         }
 
@@ -314,8 +314,8 @@ class Renderer {
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-            ctx.strokeStyle = `rgba(0, 20, 40, ${alpha * 0.25})`;
-            ctx.lineWidth = Math.max(3, width + 4);
+            ctx.strokeStyle = `rgba(0, 15, 30, ${alpha * 0.5})`;
+            ctx.lineWidth = Math.max(4, width + 6);
             ctx.lineCap = 'round';
             ctx.stroke();
         }
