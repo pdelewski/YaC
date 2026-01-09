@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize input handler
     inputHandler = new InputHandler(canvas);
 
+    // Set up minimap click handler
+    minimap.addEventListener('click', (e) => renderer.onMinimapClick(e));
+
     // Set up WebSocket callbacks
     setupWebSocketCallbacks();
 

@@ -50,12 +50,8 @@ class InputHandler {
     }
 
     onWheel(e) {
+        // Zoom disabled - use minimap to navigate
         e.preventDefault();
-        const rect = this.canvas.getBoundingClientRect();
-        const centerX = e.clientX - rect.left;
-        const centerY = e.clientY - rect.top;
-        const delta = e.deltaY > 0 ? -1 : 1;
-        renderer.zoom(delta, centerX, centerY);
     }
 
     onClick(e) {

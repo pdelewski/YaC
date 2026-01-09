@@ -1443,6 +1443,34 @@ class Renderer {
             (viewEnd.x - viewStart.x) * scale,
             (viewEnd.y - viewStart.y) * scale
         );
+
+        // Store minimap transform info for click handling
+        this.minimapScale = scale;
+        this.minimapOffsetX = offsetX;
+        this.minimapOffsetY = offsetY;
+    }
+
+    // Handle click on minimap - navigate to that location
+    onMinimapClick(e) {
+        if (!gameState.map) return;
+
+        const rect = this.minimap.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        // Convert minimap coordinates to world coordinates
+        const scale = this.minimapScale || 1;
+        const offsetX = this.minimapOffsetX || 0;
+        const offsetY = this.minimapOffsetY || 0;
+
+        const worldX = (clickX - offsetX) / scale;
+        const worldY = (clickY - offsetY) / scale;
+
+        // Center camera on clicked location
+        if (worldX >= 0 && worldX < gameState.map.width &&
+            worldY >= 0 && worldY < gameState.map.height) {
+            this.centerOn(worldX, worldY);
+        }
     }
 
     // Camera controls
