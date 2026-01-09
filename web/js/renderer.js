@@ -176,7 +176,7 @@ class Renderer {
             const screenPoints = river.points.map(p => this.worldToScreen(p.x, p.y));
 
             // Draw river with variable width (thin at source, wide at mouth)
-            this.drawVariableWidthRiver(screenPoints, scaledTileSize);
+            this.drawVariableWidthRiver(screenPoints, scaledTileSize, river);
 
             // Draw delta if river has delta branches
             if (river.delta && river.delta.length > 0) {
@@ -190,7 +190,7 @@ class Renderer {
 
     // Draw a river with variable width - thin at start, wide at end
     // Uses filled polygons for smooth continuous appearance
-    drawVariableWidthRiver(screenPoints, scaledTileSize) {
+    drawVariableWidthRiver(screenPoints, scaledTileSize, river) {
         if (screenPoints.length < 2) return;
 
         const ctx = this.ctx;
@@ -271,6 +271,49 @@ class Renderer {
         drawRiverShape(1.3, '#1a4488');                    // Bank/outline
         drawRiverShape(1.0, '#4499dd');                    // Main water
         drawRiverShape(0.4, 'rgba(102, 187, 255, 0.7)');  // Highlight
+
+        // Draw white foam/shadow at river end only if it touches ocean
+        const endPoint = screenPoints[numPoints - 1];
+        const endWidth = widths[numPoints - 1];
+
+        // Get world coordinates of river end to check for ocean
+        const lastRiverPoint = river.points[river.points.length - 1];
+        const endTileX = Math.floor(lastRiverPoint.x);
+        const endTileY = Math.floor(lastRiverPoint.y);
+
+        // Check if river end directly touches ocean (cardinal directions only, no diagonals)
+        let touchesOcean = false;
+        const cardinalDirs = [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}];
+        for (const dir of cardinalDirs) {
+            const tile = gameState.getTile(endTileX + dir.dx, endTileY + dir.dy);
+            if (tile && tile.terrain === 'Ocean') {
+                touchesOcean = true;
+                break;
+            }
+        }
+        // Also check the tile the river ends on
+        const endTile = gameState.getTile(endTileX, endTileY);
+        if (endTile && endTile.terrain === 'Ocean') {
+            touchesOcean = true;
+        }
+
+        // Only draw foam if river touches ocean
+        if (touchesOcean) {
+            const foamSize = endWidth * 1.5;
+
+            const gradient = ctx.createRadialGradient(
+                endPoint.x, endPoint.y, 0,
+                endPoint.x, endPoint.y, foamSize
+            );
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+            gradient.addColorStop(0.3, 'rgba(200, 230, 255, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            ctx.beginPath();
+            ctx.arc(endPoint.x, endPoint.y, foamSize, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+        }
     }
 
     // Draw a delta branch (thinner, with shadows) using filled polygons
