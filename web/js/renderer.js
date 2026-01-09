@@ -332,6 +332,141 @@ class Renderer {
             ctx.fillStyle = gradient;
             ctx.fill();
         }
+
+        // Draw vegetation along river banks
+        this.drawRiverVegetation(screenPoints, leftEdge, rightEdge, widths, scaledTileSize, river);
+    }
+
+    // Draw plants, reeds, and bushes along river banks
+    drawRiverVegetation(screenPoints, leftEdge, rightEdge, widths, scaledTileSize, river) {
+        const ctx = this.ctx;
+        const numPoints = screenPoints.length;
+
+        // Use river points to create a seed for consistent random placement
+        const seed = river.points.length > 0 ?
+            (river.points[0].x * 1000 + river.points[0].y) : 0;
+
+        // Simple seeded random function
+        const seededRandom = (i, offset = 0) => {
+            const x = Math.sin(seed + i * 127.1 + offset * 311.7) * 43758.5453;
+            return x - Math.floor(x);
+        };
+
+        // Draw vegetation at intervals along the river
+        const spacing = Math.max(3, Math.floor(numPoints / 20)); // Every ~5% of river length
+
+        for (let i = spacing; i < numPoints - spacing; i += spacing) {
+            const rnd = seededRandom(i);
+
+            // Skip some positions for natural variation
+            if (rnd < 0.3) continue;
+
+            const width = widths[i];
+            const baseSize = scaledTileSize / 20;
+
+            // Determine which side to place vegetation (or both)
+            const sides = [];
+            if (seededRandom(i, 1) > 0.3) sides.push('left');
+            if (seededRandom(i, 2) > 0.3) sides.push('right');
+
+            for (const side of sides) {
+                const edge = side === 'left' ? leftEdge[i] : rightEdge[i];
+                const center = screenPoints[i];
+
+                // Position slightly outside the bank
+                const offsetMult = 1.8 + seededRandom(i, 3) * 0.5;
+                const plantX = center.x + (edge.x - center.x) * offsetMult;
+                const plantY = center.y + (edge.y - center.y) * offsetMult;
+
+                // Choose plant type based on random value
+                const plantType = seededRandom(i, 4 + (side === 'left' ? 0 : 10));
+
+                if (plantType < 0.4) {
+                    // Draw reed cluster (cattails)
+                    this.drawReeds(ctx, plantX, plantY, baseSize, seededRandom, i, side);
+                } else if (plantType < 0.7) {
+                    // Draw small bush
+                    this.drawBush(ctx, plantX, plantY, baseSize, seededRandom, i, side);
+                } else {
+                    // Draw grass tuft
+                    this.drawGrassTuft(ctx, plantX, plantY, baseSize, seededRandom, i, side);
+                }
+            }
+        }
+    }
+
+    // Draw a cluster of reeds/cattails
+    drawReeds(ctx, x, y, baseSize, seededRandom, i, side) {
+        const numReeds = 2 + Math.floor(seededRandom(i, 20) * 3);
+
+        for (let r = 0; r < numReeds; r++) {
+            const offsetX = (seededRandom(i, 30 + r) - 0.5) * baseSize * 2;
+            const reedX = x + offsetX;
+            const reedHeight = baseSize * (1.5 + seededRandom(i, 40 + r) * 1.5);
+
+            // Reed stem
+            ctx.beginPath();
+            ctx.moveTo(reedX, y);
+            ctx.lineTo(reedX - baseSize * 0.1, y - reedHeight);
+            ctx.strokeStyle = '#4a6b35';
+            ctx.lineWidth = Math.max(1, baseSize * 0.15);
+            ctx.stroke();
+
+            // Cattail top (brown oval)
+            if (seededRandom(i, 50 + r) > 0.4) {
+                ctx.beginPath();
+                ctx.ellipse(reedX - baseSize * 0.1, y - reedHeight - baseSize * 0.3,
+                           baseSize * 0.15, baseSize * 0.4, 0, 0, Math.PI * 2);
+                ctx.fillStyle = '#5c4033';
+                ctx.fill();
+            }
+        }
+    }
+
+    // Draw a small bush
+    drawBush(ctx, x, y, baseSize, seededRandom, i, side) {
+        const bushSize = baseSize * (1 + seededRandom(i, 60) * 0.5);
+
+        // Shadow
+        ctx.beginPath();
+        ctx.ellipse(x + bushSize * 0.1, y + bushSize * 0.1, bushSize, bushSize * 0.6, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 40, 0, 0.3)';
+        ctx.fill();
+
+        // Main bush body (multiple overlapping circles)
+        const colors = ['#2d5a1d', '#3d6b2d', '#4a7d3a', '#2a4f1a'];
+        for (let c = 0; c < 3; c++) {
+            const offX = (seededRandom(i, 70 + c) - 0.5) * bushSize * 0.5;
+            const offY = (seededRandom(i, 80 + c) - 0.5) * bushSize * 0.3;
+            ctx.beginPath();
+            ctx.arc(x + offX, y - bushSize * 0.3 + offY, bushSize * (0.5 + seededRandom(i, 90 + c) * 0.3), 0, Math.PI * 2);
+            ctx.fillStyle = colors[c % colors.length];
+            ctx.fill();
+        }
+    }
+
+    // Draw a grass tuft
+    drawGrassTuft(ctx, x, y, baseSize, seededRandom, i, side) {
+        const numBlades = 4 + Math.floor(seededRandom(i, 100) * 4);
+
+        ctx.strokeStyle = '#5a8a4a';
+        ctx.lineWidth = Math.max(1, baseSize * 0.1);
+
+        for (let b = 0; b < numBlades; b++) {
+            const angle = (seededRandom(i, 110 + b) - 0.5) * 0.8;
+            const height = baseSize * (0.8 + seededRandom(i, 120 + b) * 0.8);
+            const curve = (seededRandom(i, 130 + b) - 0.5) * baseSize * 0.5;
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.quadraticCurveTo(
+                x + curve,
+                y - height * 0.6,
+                x + Math.sin(angle) * height * 0.3,
+                y - height
+            );
+            ctx.stroke();
+        }
     }
 
     // Draw a delta branch (thinner, with shadows) using filled polygons
