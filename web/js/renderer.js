@@ -184,13 +184,16 @@ class Renderer {
         if (bottomTile && bottomTile.terrain !== tile.terrain) {
             const trans = spriteManager.getTransition(tile.terrain, bottomTile.terrain, 'bottom');
             if (trans) {
-                // Draw transition tile rotated 90 degrees, centered on the bottom edge
+                // Draw transition tile rotated, centered on the bottom edge
                 const transY = screenY + size * 0.5;
                 ctx.save();
                 ctx.translate(screenX + size / 2, transY + size / 2);
-                ctx.rotate(Math.PI / 2); // Rotate 90 degrees clockwise
                 if (trans.flip) {
-                    ctx.scale(-1, 1);
+                    // Rotate counter-clockwise when flipped
+                    ctx.rotate(-Math.PI / 2);
+                } else {
+                    // Rotate clockwise
+                    ctx.rotate(Math.PI / 2);
                 }
                 ctx.drawImage(trans.tile, -size / 2, -size / 2, size, size);
                 ctx.restore();
