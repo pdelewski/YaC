@@ -148,21 +148,19 @@ func (g *Generator) applyIslandGradient(x, y int, elevation float64) float64 {
 }
 
 // addForests adds forest terrain to suitable tiles
-// Forests are only placed on grassland tiles that are completely surrounded by grassland
+// Forests can only border grassland or other forests
 func (g *Generator) addForests(gm *game.GameMap) {
+	// First pass: mark candidate tiles for forest
+	candidates := make(map[[2]int]bool)
+
 	for y := 0; y < g.config.Height; y++ {
 		for x := 0; x < g.config.Width; x++ {
 			tile := gm.GetTile(x, y)
-			if tile == nil {
+			if tile == nil || tile.Terrain != game.TerrainGrassland {
 				continue
 			}
 
-			// Only add forests to grassland
-			if tile.Terrain != game.TerrainGrassland {
-				continue
-			}
-
-			// Check if all neighbors are grassland
+			// Check if all neighbors are grassland (forests can expand later)
 			neighbors := gm.GetNeighbors(x, y)
 			allGrassland := true
 			for _, n := range neighbors {
@@ -181,8 +179,26 @@ func (g *Generator) addForests(gm *game.GameMap) {
 			forestValue := g.forestNoise.Noise2D(nx, ny)
 
 			if forestValue > 0.2 {
-				tile.Terrain = game.TerrainForest
+				candidates[[2]int{x, y}] = true
 			}
+		}
+	}
+
+	// Second pass: place forests where they only touch grassland or other forest candidates
+	for coord := range candidates {
+		x, y := coord[0], coord[1]
+		neighbors := gm.GetNeighbors(x, y)
+		valid := true
+		for _, n := range neighbors {
+			// Allow grassland or tiles that will become forest
+			isCandidate := candidates[[2]int{n.X, n.Y}]
+			if n.Terrain != game.TerrainGrassland && !isCandidate {
+				valid = false
+				break
+			}
+		}
+		if valid {
+			gm.SetTerrain(x, y, game.TerrainForest)
 		}
 	}
 }
