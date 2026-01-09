@@ -759,6 +759,38 @@ func (g *Generator) traceRiverPath(gm *game.GameMap, startX, startY int) game.Ri
 		x, y = bestX, bestY
 	}
 
+	// If river didn't reach ocean, check if it's adjacent to ocean and extend it
+	if len(river.Points) > 0 {
+		lastPt := river.Points[len(river.Points)-1]
+		lastTileX, lastTileY := int(lastPt.X), int(lastPt.Y)
+
+		// Check cardinal directions for ocean
+		cardinalDirs := [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
+		for _, d := range cardinalDirs {
+			adjTile := gm.GetTile(lastTileX+d[0], lastTileY+d[1])
+			if adjTile != nil && adjTile.Terrain == game.TerrainOcean {
+				// Extend river to touch ocean edge
+				edgeX := lastPt.X
+				edgeY := lastPt.Y
+
+				if d[0] > 0 {
+					edgeX = float64(lastTileX) + 0.95 // Right edge
+				} else if d[0] < 0 {
+					edgeX = float64(lastTileX) + 0.05 // Left edge
+				}
+				if d[1] > 0 {
+					edgeY = float64(lastTileY) + 0.95 // Bottom edge
+				} else if d[1] < 0 {
+					edgeY = float64(lastTileY) + 0.05 // Top edge
+				}
+
+				river.Points = append(river.Points, game.RiverPoint{X: edgeX, Y: edgeY})
+				log.Printf("Extended river to touch ocean at edge (%.2f, %.2f)", edgeX, edgeY)
+				break
+			}
+		}
+	}
+
 	return river
 }
 
