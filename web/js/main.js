@@ -56,7 +56,7 @@ function setupWebSocketCallbacks() {
 
         gameState.updateFromServer(data);
 
-        // Center camera on first unit if first load
+        // Center camera on first unit if first load and set max zoom
         if (gameState.map) {
             const myPlayer = gameState.getMyPlayer();
             console.log('My player:', myPlayer ? myPlayer.name : 'not found');
@@ -64,6 +64,8 @@ function setupWebSocketCallbacks() {
             if (myPlayer && myPlayer.units.length > 0) {
                 const firstUnit = myPlayer.units[0];
                 console.log('Centering on unit at:', firstUnit.x, firstUnit.y);
+                // Set maximum zoom for better initial view
+                renderer.camera.zoom = Config.CAMERA.MAX_ZOOM;
                 renderer.centerOn(firstUnit.x, firstUnit.y);
             }
         }
