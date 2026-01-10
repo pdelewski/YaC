@@ -2667,19 +2667,22 @@ class Renderer {
                     );
                 }
 
-                // Blinking border for units that can still act (my units with movement left)
+                // Small icon for units that can still act (my units with movement left)
                 if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified &&
                     !(gameState.selectedUnit && unit.id === gameState.selectedUnit.id)) {
-                    if (Math.floor(Date.now() / 600) % 2 === 0) {
-                        this.ctx.strokeStyle = '#ffff00';
-                        this.ctx.lineWidth = 2;
-                        this.ctx.strokeRect(
-                            screen.x + scaledTileSize * 0.02,
-                            screen.y + scaledTileSize * 0.02,
-                            scaledTileSize * 0.96,
-                            scaledTileSize * 0.96
-                        );
-                    }
+                    // Draw a small green arrow/chevron in the top-right corner
+                    const iconSize = scaledTileSize * 0.2;
+                    const iconX = screen.x + scaledTileSize - iconSize - 2;
+                    const iconY = screen.y + 2;
+
+                    this.ctx.fillStyle = '#00cc00';
+                    this.ctx.beginPath();
+                    // Arrow pointing right
+                    this.ctx.moveTo(iconX, iconY + iconSize * 0.2);
+                    this.ctx.lineTo(iconX + iconSize * 0.7, iconY + iconSize * 0.5);
+                    this.ctx.lineTo(iconX, iconY + iconSize * 0.8);
+                    this.ctx.closePath();
+                    this.ctx.fill();
                 }
             }
         }
