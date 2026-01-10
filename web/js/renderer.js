@@ -130,7 +130,7 @@ class Renderer {
             }
         }
 
-        // Third pass: draw grid, improvements, and resources
+        // Third pass: draw grid and improvements
         for (let y = range.startY; y < range.endY; y++) {
             for (let x = range.startX; x < range.endX; x++) {
                 const tile = gameState.getTile(x, y);
@@ -148,15 +148,10 @@ class Renderer {
                 if (tile.has_road) {
                     this.drawRoad(screen.x, screen.y, s, x, y);
                 }
-
-                // Draw resources
-                if (tile.resource && tile.resource !== '') {
-                    this.drawResource(tile.resource, screen.x, screen.y, s);
-                }
             }
         }
 
-        // Fourth pass: draw coastal decorations (rocks, shells, etc.)
+        // Fourth pass: draw coastal decorations (beaches, rocks, shells, etc.)
         for (let y = range.startY; y < range.endY; y++) {
             for (let x = range.startX; x < range.endX; x++) {
                 const tile = gameState.getTile(x, y);
@@ -174,7 +169,21 @@ class Renderer {
             }
         }
 
-        // Fifth pass: draw rivers as smooth paths
+        // Fifth pass: draw resources (on top of beaches)
+        for (let y = range.startY; y < range.endY; y++) {
+            for (let x = range.startX; x < range.endX; x++) {
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+
+                if (tile.resource && tile.resource !== '') {
+                    const screen = this.worldToScreen(x, y);
+                    const s = scaledTileSize;
+                    this.drawResource(tile.resource, screen.x, screen.y, s);
+                }
+            }
+        }
+
+        // Sixth pass: draw rivers as smooth paths
         this.renderRivers();
     }
 
