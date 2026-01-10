@@ -352,45 +352,130 @@ class Renderer {
             return x - Math.floor(x);
         };
 
-        // Draw vegetation at intervals along the river
-        const spacing = Math.max(3, Math.floor(numPoints / 20)); // Every ~5% of river length
+        // Draw vegetation at intervals along the river - very dense spacing
+        const spacing = Math.max(1, Math.floor(numPoints / 60)); // Much more frequent
 
         for (let i = spacing; i < numPoints - spacing; i += spacing) {
             const rnd = seededRandom(i);
 
-            // Skip some positions for natural variation
-            if (rnd < 0.3) continue;
+            // Almost never skip - very dense vegetation
+            if (rnd < 0.05) continue;
 
             const width = widths[i];
-            const baseSize = scaledTileSize / 20;
+            const baseSize = scaledTileSize / 16;
 
-            // Determine which side to place vegetation (or both)
-            const sides = [];
-            if (seededRandom(i, 1) > 0.3) sides.push('left');
-            if (seededRandom(i, 2) > 0.3) sides.push('right');
+            // Always place on both sides
+            const sides = ['left', 'right'];
 
             for (const side of sides) {
                 const edge = side === 'left' ? leftEdge[i] : rightEdge[i];
                 const center = screenPoints[i];
 
-                // Position slightly outside the bank
-                const offsetMult = 1.8 + seededRandom(i, 3) * 0.5;
-                const plantX = center.x + (edge.x - center.x) * offsetMult;
-                const plantY = center.y + (edge.y - center.y) * offsetMult;
+                // Draw multiple layers of vegetation at different distances from bank
+                const numLayers = 2 + Math.floor(seededRandom(i, 800 + (side === 'left' ? 0 : 100)) * 2);
 
-                // Choose plant type based on random value
-                const plantType = seededRandom(i, 4 + (side === 'left' ? 0 : 10));
+                for (let layer = 0; layer < numLayers; layer++) {
+                    // Position at varying distances from the bank
+                    const offsetMult = 1.3 + layer * 0.5 + seededRandom(i, 3 + layer * 10) * 0.4;
+                    const lateralOffset = (seededRandom(i, 810 + layer) - 0.5) * baseSize * 2;
+                    const plantX = center.x + (edge.x - center.x) * offsetMult + lateralOffset;
+                    const plantY = center.y + (edge.y - center.y) * offsetMult;
 
-                if (plantType < 0.4) {
-                    // Draw reed cluster (cattails)
-                    this.drawReeds(ctx, plantX, plantY, baseSize, seededRandom, i, side);
-                } else if (plantType < 0.7) {
-                    // Draw small bush
-                    this.drawBush(ctx, plantX, plantY, baseSize, seededRandom, i, side);
-                } else {
-                    // Draw grass tuft
-                    this.drawGrassTuft(ctx, plantX, plantY, baseSize, seededRandom, i, side);
+                    // Choose plant type based on random value and layer
+                    const plantType = seededRandom(i, 4 + layer * 20 + (side === 'left' ? 0 : 10));
+
+                    // Inner layer (close to water) - more reeds, rocks, flowers
+                    // Outer layers - more trees, bushes, ferns
+                    if (layer === 0) {
+                        if (plantType < 0.3) {
+                            this.drawReeds(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.5) {
+                            this.drawRocks(ctx, plantX, plantY, baseSize * 0.8, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.7) {
+                            this.drawFlowers(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
+                        } else {
+                            this.drawGrassTuft(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
+                        }
+                    } else {
+                        if (plantType < 0.15) {
+                            this.drawRiverTree(ctx, plantX, plantY, baseSize * 1.2, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.35) {
+                            this.drawBush(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.5) {
+                            this.drawFerns(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.7) {
+                            this.drawGrassTuft(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.85) {
+                            this.drawFlowers(ctx, plantX, plantY, baseSize * 0.9, seededRandom, i + layer * 100, side);
+                        } else {
+                            this.drawRocks(ctx, plantX, plantY, baseSize * 0.7, seededRandom, i + layer * 100, side);
+                        }
+                    }
                 }
+
+                // Add extra scattered grass tufts
+                const numExtraGrass = 1 + Math.floor(seededRandom(i, 900 + (side === 'left' ? 0 : 50)) * 3);
+                for (let g = 0; g < numExtraGrass; g++) {
+                    const grassOffsetMult = 1.2 + seededRandom(i, 910 + g) * 1.5;
+                    const grassLateral = (seededRandom(i, 920 + g) - 0.5) * baseSize * 4;
+                    const grassX = center.x + (edge.x - center.x) * grassOffsetMult + grassLateral;
+                    const grassY = center.y + (edge.y - center.y) * grassOffsetMult;
+                    this.drawGrassTuft(ctx, grassX, grassY, baseSize * (0.5 + seededRandom(i, 930 + g) * 0.5), seededRandom, i + 2000 + g, side);
+                }
+            }
+        }
+
+        // Draw more lily pads in the water
+        this.drawLilyPads(ctx, screenPoints, widths, scaledTileSize, seededRandom, numPoints);
+    }
+
+    // Draw lily pads floating on the river
+    drawLilyPads(ctx, screenPoints, widths, scaledTileSize, seededRandom, numPoints) {
+        const spacing = Math.max(2, Math.floor(numPoints / 30)); // More frequent
+
+        for (let i = spacing; i < numPoints - spacing; i += spacing) {
+            // Only add lily pads where river is wide enough
+            if (widths[i] < scaledTileSize / 12) continue;
+            if (seededRandom(i, 300) < 0.3) continue; // More likely to spawn
+
+            const center = screenPoints[i];
+            const numPads = 2 + Math.floor(seededRandom(i, 310) * 4); // More pads per cluster
+
+            for (let p = 0; p < numPads; p++) {
+                const offsetX = (seededRandom(i, 320 + p) - 0.5) * widths[i] * 0.6;
+                const offsetY = (seededRandom(i, 330 + p) - 0.5) * widths[i] * 0.4;
+                const padX = center.x + offsetX;
+                const padY = center.y + offsetY;
+                const padSize = scaledTileSize / 30 * (0.8 + seededRandom(i, 340 + p) * 0.4);
+
+                // Lily pad (circle with a slice cut out)
+                ctx.save();
+                ctx.translate(padX, padY);
+                ctx.rotate(seededRandom(i, 350 + p) * Math.PI * 2);
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, padSize, 0.2, Math.PI * 2 - 0.2);
+                ctx.closePath();
+                ctx.fillStyle = '#2d6b2d';
+                ctx.fill();
+                ctx.strokeStyle = '#1d4b1d';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                // Sometimes add a flower on the lily pad
+                if (seededRandom(i, 360 + p) > 0.7) {
+                    ctx.beginPath();
+                    ctx.arc(padSize * 0.3, 0, padSize * 0.25, 0, Math.PI * 2);
+                    ctx.fillStyle = seededRandom(i, 370 + p) > 0.5 ? '#ffb7c5' : '#fff';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(padSize * 0.3, 0, padSize * 0.1, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffeb3b';
+                    ctx.fill();
+                }
+
+                ctx.restore();
             }
         }
     }
@@ -466,6 +551,188 @@ class Renderer {
                 y - height
             );
             ctx.stroke();
+        }
+    }
+
+    // Draw a small tree near the river
+    drawRiverTree(ctx, x, y, baseSize, seededRandom, i, side) {
+        const treeHeight = baseSize * (2.5 + seededRandom(i, 400) * 1.5);
+        const trunkWidth = baseSize * 0.3;
+        const canopySize = baseSize * (1.2 + seededRandom(i, 410) * 0.6);
+
+        // Shadow
+        ctx.beginPath();
+        ctx.ellipse(x + baseSize * 0.3, y + baseSize * 0.1, canopySize * 0.8, canopySize * 0.3, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 30, 0, 0.25)';
+        ctx.fill();
+
+        // Trunk
+        ctx.beginPath();
+        ctx.moveTo(x - trunkWidth / 2, y);
+        ctx.lineTo(x - trunkWidth / 3, y - treeHeight * 0.6);
+        ctx.lineTo(x + trunkWidth / 3, y - treeHeight * 0.6);
+        ctx.lineTo(x + trunkWidth / 2, y);
+        ctx.closePath();
+        ctx.fillStyle = '#5d4037';
+        ctx.fill();
+
+        // Canopy layers (multiple circles for natural look)
+        const canopyColors = ['#1b5e20', '#2e7d32', '#388e3c', '#43a047'];
+        const numLayers = 3 + Math.floor(seededRandom(i, 420) * 2);
+
+        for (let c = 0; c < numLayers; c++) {
+            const layerX = x + (seededRandom(i, 430 + c) - 0.5) * canopySize * 0.5;
+            const layerY = y - treeHeight * 0.6 - canopySize * 0.3 + (seededRandom(i, 440 + c) - 0.5) * canopySize * 0.4;
+            const layerSize = canopySize * (0.6 + seededRandom(i, 450 + c) * 0.4);
+
+            ctx.beginPath();
+            ctx.arc(layerX, layerY, layerSize, 0, Math.PI * 2);
+            ctx.fillStyle = canopyColors[c % canopyColors.length];
+            ctx.fill();
+        }
+
+        // Top highlight
+        ctx.beginPath();
+        ctx.arc(x, y - treeHeight * 0.7, canopySize * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#4caf50';
+        ctx.fill();
+    }
+
+    // Draw rocks/stones
+    drawRocks(ctx, x, y, baseSize, seededRandom, i, side) {
+        const numRocks = 1 + Math.floor(seededRandom(i, 500) * 3);
+
+        for (let r = 0; r < numRocks; r++) {
+            const rockX = x + (seededRandom(i, 510 + r) - 0.5) * baseSize * 2;
+            const rockY = y + (seededRandom(i, 520 + r) - 0.5) * baseSize;
+            const rockWidth = baseSize * (0.5 + seededRandom(i, 530 + r) * 0.8);
+            const rockHeight = rockWidth * (0.5 + seededRandom(i, 540 + r) * 0.3);
+
+            // Shadow
+            ctx.beginPath();
+            ctx.ellipse(rockX + rockWidth * 0.1, rockY + rockHeight * 0.2,
+                       rockWidth * 0.9, rockHeight * 0.4, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fill();
+
+            // Rock body (irregular ellipse)
+            ctx.beginPath();
+            ctx.ellipse(rockX, rockY - rockHeight * 0.3, rockWidth, rockHeight,
+                       seededRandom(i, 550 + r) * 0.3, 0, Math.PI * 2);
+
+            // Gradient for 3D effect
+            const rockGrad = ctx.createRadialGradient(
+                rockX - rockWidth * 0.3, rockY - rockHeight * 0.5, 0,
+                rockX, rockY - rockHeight * 0.3, rockWidth
+            );
+            const grayBase = 80 + Math.floor(seededRandom(i, 560 + r) * 40);
+            rockGrad.addColorStop(0, `rgb(${grayBase + 40}, ${grayBase + 35}, ${grayBase + 30})`);
+            rockGrad.addColorStop(0.7, `rgb(${grayBase}, ${grayBase - 5}, ${grayBase - 10})`);
+            rockGrad.addColorStop(1, `rgb(${grayBase - 20}, ${grayBase - 25}, ${grayBase - 30})`);
+
+            ctx.fillStyle = rockGrad;
+            ctx.fill();
+
+            // Highlight
+            ctx.beginPath();
+            ctx.ellipse(rockX - rockWidth * 0.3, rockY - rockHeight * 0.5,
+                       rockWidth * 0.2, rockHeight * 0.15, -0.3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+        }
+    }
+
+    // Draw wildflowers
+    drawFlowers(ctx, x, y, baseSize, seededRandom, i, side) {
+        const numFlowers = 2 + Math.floor(seededRandom(i, 600) * 4);
+        const flowerColors = ['#e91e63', '#9c27b0', '#ffeb3b', '#ff9800', '#fff', '#81d4fa'];
+
+        for (let f = 0; f < numFlowers; f++) {
+            const flowerX = x + (seededRandom(i, 610 + f) - 0.5) * baseSize * 2.5;
+            const flowerY = y + (seededRandom(i, 620 + f) - 0.5) * baseSize * 1.5;
+            const stemHeight = baseSize * (0.5 + seededRandom(i, 630 + f) * 0.5);
+            const petalSize = baseSize * (0.15 + seededRandom(i, 640 + f) * 0.15);
+
+            // Stem
+            ctx.beginPath();
+            ctx.moveTo(flowerX, flowerY);
+            ctx.quadraticCurveTo(
+                flowerX + (seededRandom(i, 650 + f) - 0.5) * baseSize * 0.3,
+                flowerY - stemHeight * 0.5,
+                flowerX, flowerY - stemHeight
+            );
+            ctx.strokeStyle = '#4a7c3f';
+            ctx.lineWidth = Math.max(0.5, baseSize * 0.05);
+            ctx.stroke();
+
+            // Petals
+            const numPetals = 4 + Math.floor(seededRandom(i, 660 + f) * 3);
+            const color = flowerColors[Math.floor(seededRandom(i, 670 + f) * flowerColors.length)];
+
+            for (let p = 0; p < numPetals; p++) {
+                const angle = (p / numPetals) * Math.PI * 2;
+                const petalX = flowerX + Math.cos(angle) * petalSize * 0.8;
+                const petalY = flowerY - stemHeight + Math.sin(angle) * petalSize * 0.8;
+
+                ctx.beginPath();
+                ctx.ellipse(petalX, petalY, petalSize * 0.5, petalSize * 0.3,
+                           angle, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+
+            // Center
+            ctx.beginPath();
+            ctx.arc(flowerX, flowerY - stemHeight, petalSize * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffc107';
+            ctx.fill();
+        }
+    }
+
+    // Draw ferns
+    drawFerns(ctx, x, y, baseSize, seededRandom, i, side) {
+        const numFronds = 2 + Math.floor(seededRandom(i, 700) * 3);
+
+        for (let f = 0; f < numFronds; f++) {
+            const startX = x + (seededRandom(i, 710 + f) - 0.5) * baseSize;
+            const frondLength = baseSize * (1.2 + seededRandom(i, 720 + f) * 0.8);
+            const angle = (seededRandom(i, 730 + f) - 0.5) * 1.2 - 0.3; // Mostly upward, slight lean
+
+            ctx.save();
+            ctx.translate(startX, y);
+            ctx.rotate(angle);
+
+            // Main stem
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(frondLength * 0.1, -frondLength * 0.5, 0, -frondLength);
+            ctx.strokeStyle = '#3d6b35';
+            ctx.lineWidth = Math.max(0.5, baseSize * 0.08);
+            ctx.stroke();
+
+            // Leaflets along the stem
+            const numLeaflets = 6 + Math.floor(seededRandom(i, 740 + f) * 4);
+            ctx.fillStyle = '#4a8b3a';
+
+            for (let l = 0; l < numLeaflets; l++) {
+                const progress = (l + 1) / (numLeaflets + 1);
+                const leafY = -frondLength * progress;
+                const leafSize = baseSize * 0.3 * (1 - progress * 0.5);
+
+                // Left leaflet
+                ctx.beginPath();
+                ctx.moveTo(0, leafY);
+                ctx.quadraticCurveTo(-leafSize, leafY - leafSize * 0.3, -leafSize * 0.8, leafY + leafSize * 0.2);
+                ctx.fill();
+
+                // Right leaflet
+                ctx.beginPath();
+                ctx.moveTo(0, leafY);
+                ctx.quadraticCurveTo(leafSize, leafY - leafSize * 0.3, leafSize * 0.8, leafY + leafSize * 0.2);
+                ctx.fill();
+            }
+
+            ctx.restore();
         }
     }
 
