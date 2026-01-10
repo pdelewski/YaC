@@ -384,26 +384,28 @@ class Renderer {
                     // Choose plant type based on random value and layer
                     const plantType = seededRandom(i, 4 + layer * 20 + (side === 'left' ? 0 : 10));
 
-                    // Inner layer (close to water) - more reeds, rocks, flowers
+                    // Inner layer (close to water) - more reeds, rocks, stones, flowers
                     // Outer layers - more trees, bushes, ferns
                     if (layer === 0) {
-                        if (plantType < 0.3) {
+                        if (plantType < 0.25) {
                             this.drawReeds(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
-                        } else if (plantType < 0.5) {
+                        } else if (plantType < 0.4) {
                             this.drawRocks(ctx, plantX, plantY, baseSize * 0.8, seededRandom, i + layer * 100, side);
-                        } else if (plantType < 0.7) {
+                        } else if (plantType < 0.55) {
+                            this.drawStones(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.75) {
                             this.drawFlowers(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
                         } else {
                             this.drawGrassTuft(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
                         }
                     } else {
-                        if (plantType < 0.15) {
-                            this.drawRiverTree(ctx, plantX, plantY, baseSize * 1.2, seededRandom, i + layer * 100, side);
-                        } else if (plantType < 0.35) {
+                        if (plantType < 0.18) {
                             this.drawBush(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
-                        } else if (plantType < 0.5) {
+                        } else if (plantType < 0.35) {
                             this.drawFerns(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
-                        } else if (plantType < 0.7) {
+                        } else if (plantType < 0.50) {
+                            this.drawStones(ctx, plantX, plantY, baseSize * 0.8, seededRandom, i + layer * 100, side);
+                        } else if (plantType < 0.68) {
                             this.drawGrassTuft(ctx, plantX, plantY, baseSize, seededRandom, i + layer * 100, side);
                         } else if (plantType < 0.85) {
                             this.drawFlowers(ctx, plantX, plantY, baseSize * 0.9, seededRandom, i + layer * 100, side);
@@ -411,6 +413,33 @@ class Renderer {
                             this.drawRocks(ctx, plantX, plantY, baseSize * 0.7, seededRandom, i + layer * 100, side);
                         }
                     }
+                }
+
+                // Add extra scattered stones near the water
+                if (seededRandom(i, 950 + (side === 'left' ? 0 : 50)) > 0.4) {
+                    const stoneOffsetMult = 1.1 + seededRandom(i, 960) * 0.4;
+                    const stoneLateral = (seededRandom(i, 970) - 0.5) * baseSize * 3;
+                    const stoneX = center.x + (edge.x - center.x) * stoneOffsetMult + stoneLateral;
+                    const stoneY = center.y + (edge.y - center.y) * stoneOffsetMult;
+                    this.drawStones(ctx, stoneX, stoneY, baseSize * 0.6, seededRandom, i + 3000, side);
+                }
+
+                // Add rocks close to the river (larger boulders near water's edge)
+                if (seededRandom(i, 980 + (side === 'left' ? 0 : 50)) > 0.5) {
+                    const rockOffsetMult = 1.05 + seededRandom(i, 985) * 0.3;
+                    const rockLateral = (seededRandom(i, 990) - 0.5) * baseSize * 2;
+                    const rockX = center.x + (edge.x - center.x) * rockOffsetMult + rockLateral;
+                    const rockY = center.y + (edge.y - center.y) * rockOffsetMult;
+                    this.drawRocks(ctx, rockX, rockY, baseSize * (0.6 + seededRandom(i, 995) * 0.4), seededRandom, i + 4000, side);
+                }
+
+                // Sometimes add a second rock cluster slightly further from water
+                if (seededRandom(i, 1000 + (side === 'left' ? 0 : 50)) > 0.7) {
+                    const rockOffsetMult = 1.4 + seededRandom(i, 1005) * 0.5;
+                    const rockLateral = (seededRandom(i, 1010) - 0.5) * baseSize * 3;
+                    const rockX = center.x + (edge.x - center.x) * rockOffsetMult + rockLateral;
+                    const rockY = center.y + (edge.y - center.y) * rockOffsetMult;
+                    this.drawRocks(ctx, rockX, rockY, baseSize * (0.5 + seededRandom(i, 1015) * 0.5), seededRandom, i + 5000, side);
                 }
 
                 // Add extra scattered grass tufts
@@ -598,21 +627,21 @@ class Renderer {
         ctx.fill();
     }
 
-    // Draw rocks/stones
+    // Draw rocks/stones (larger rocks)
     drawRocks(ctx, x, y, baseSize, seededRandom, i, side) {
-        const numRocks = 1 + Math.floor(seededRandom(i, 500) * 3);
+        const numRocks = 2 + Math.floor(seededRandom(i, 500) * 3);
 
         for (let r = 0; r < numRocks; r++) {
-            const rockX = x + (seededRandom(i, 510 + r) - 0.5) * baseSize * 2;
-            const rockY = y + (seededRandom(i, 520 + r) - 0.5) * baseSize;
-            const rockWidth = baseSize * (0.5 + seededRandom(i, 530 + r) * 0.8);
+            const rockX = x + (seededRandom(i, 510 + r) - 0.5) * baseSize * 2.5;
+            const rockY = y + (seededRandom(i, 520 + r) - 0.5) * baseSize * 1.2;
+            const rockWidth = baseSize * (0.5 + seededRandom(i, 530 + r) * 0.9);
             const rockHeight = rockWidth * (0.5 + seededRandom(i, 540 + r) * 0.3);
 
             // Shadow
             ctx.beginPath();
-            ctx.ellipse(rockX + rockWidth * 0.1, rockY + rockHeight * 0.2,
-                       rockWidth * 0.9, rockHeight * 0.4, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.ellipse(rockX + rockWidth * 0.15, rockY + rockHeight * 0.25,
+                       rockWidth * 0.95, rockHeight * 0.45, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
             ctx.fill();
 
             // Rock body (irregular ellipse)
@@ -620,15 +649,29 @@ class Renderer {
             ctx.ellipse(rockX, rockY - rockHeight * 0.3, rockWidth, rockHeight,
                        seededRandom(i, 550 + r) * 0.3, 0, Math.PI * 2);
 
-            // Gradient for 3D effect
+            // Gradient for 3D effect - gray/white tones
             const rockGrad = ctx.createRadialGradient(
                 rockX - rockWidth * 0.3, rockY - rockHeight * 0.5, 0,
                 rockX, rockY - rockHeight * 0.3, rockWidth
             );
-            const grayBase = 80 + Math.floor(seededRandom(i, 560 + r) * 40);
-            rockGrad.addColorStop(0, `rgb(${grayBase + 40}, ${grayBase + 35}, ${grayBase + 30})`);
-            rockGrad.addColorStop(0.7, `rgb(${grayBase}, ${grayBase - 5}, ${grayBase - 10})`);
-            rockGrad.addColorStop(1, `rgb(${grayBase - 20}, ${grayBase - 25}, ${grayBase - 30})`);
+
+            // Color variation - grays and whites
+            const colorType = seededRandom(i, 555 + r);
+            let grayBase;
+            if (colorType < 0.4) {
+                // Light gray/white
+                grayBase = 160 + Math.floor(seededRandom(i, 560 + r) * 50);
+            } else if (colorType < 0.7) {
+                // Medium gray
+                grayBase = 120 + Math.floor(seededRandom(i, 560 + r) * 40);
+            } else {
+                // Blue-gray
+                grayBase = 100 + Math.floor(seededRandom(i, 560 + r) * 35);
+            }
+
+            rockGrad.addColorStop(0, `rgb(${grayBase + 35}, ${grayBase + 35}, ${grayBase + 40})`);
+            rockGrad.addColorStop(0.6, `rgb(${grayBase}, ${grayBase}, ${grayBase + 5})`);
+            rockGrad.addColorStop(1, `rgb(${grayBase - 25}, ${grayBase - 25}, ${grayBase - 20})`);
 
             ctx.fillStyle = rockGrad;
             ctx.fill();
@@ -636,8 +679,81 @@ class Renderer {
             // Highlight
             ctx.beginPath();
             ctx.ellipse(rockX - rockWidth * 0.3, rockY - rockHeight * 0.5,
-                       rockWidth * 0.2, rockHeight * 0.15, -0.3, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                       rockWidth * 0.25, rockHeight * 0.18, -0.3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.fill();
+        }
+    }
+
+    // Draw scattered small stones/pebbles
+    drawStones(ctx, x, y, baseSize, seededRandom, i, side) {
+        const numStones = 5 + Math.floor(seededRandom(i, 1500) * 8); // More stones
+
+        for (let s = 0; s < numStones; s++) {
+            const stoneX = x + (seededRandom(i, 1510 + s) - 0.5) * baseSize * 4;
+            const stoneY = y + (seededRandom(i, 1520 + s) - 0.5) * baseSize * 2.5;
+            const stoneSize = baseSize * (0.12 + seededRandom(i, 1530 + s) * 0.3);
+
+            // Tiny shadow
+            ctx.beginPath();
+            ctx.ellipse(stoneX + stoneSize * 0.2, stoneY + stoneSize * 0.15,
+                       stoneSize * 0.9, stoneSize * 0.5, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fill();
+
+            // Stone body - varied shapes
+            ctx.beginPath();
+            const shapeType = seededRandom(i, 1540 + s);
+            if (shapeType < 0.4) {
+                // Round pebble
+                ctx.arc(stoneX, stoneY, stoneSize, 0, Math.PI * 2);
+            } else if (shapeType < 0.7) {
+                // Oval pebble
+                ctx.ellipse(stoneX, stoneY, stoneSize * 1.3, stoneSize * 0.8,
+                           seededRandom(i, 1550 + s) * Math.PI, 0, Math.PI * 2);
+            } else {
+                // Irregular stone (polygon)
+                const points = 5 + Math.floor(seededRandom(i, 1560 + s) * 3);
+                for (let p = 0; p < points; p++) {
+                    const angle = (p / points) * Math.PI * 2;
+                    const radius = stoneSize * (0.7 + seededRandom(i, 1570 + s * 10 + p) * 0.5);
+                    const px = stoneX + Math.cos(angle) * radius;
+                    const py = stoneY + Math.sin(angle) * radius;
+                    if (p === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+            }
+
+            // Color variation - mostly gray/white tones
+            const colorType = seededRandom(i, 1580 + s);
+            let stoneColor;
+            if (colorType < 0.35) {
+                // Light gray / white
+                const gray = 180 + Math.floor(seededRandom(i, 1590 + s) * 60);
+                stoneColor = `rgb(${gray}, ${gray}, ${gray - 5})`;
+            } else if (colorType < 0.6) {
+                // Medium gray
+                const gray = 130 + Math.floor(seededRandom(i, 1600 + s) * 50);
+                stoneColor = `rgb(${gray}, ${gray - 3}, ${gray - 5})`;
+            } else if (colorType < 0.8) {
+                // Blue-gray (river stones)
+                const gray = 120 + Math.floor(seededRandom(i, 1610 + s) * 40);
+                stoneColor = `rgb(${gray - 10}, ${gray}, ${gray + 15})`;
+            } else {
+                // Dark gray
+                const gray = 80 + Math.floor(seededRandom(i, 1620 + s) * 40);
+                stoneColor = `rgb(${gray}, ${gray - 2}, ${gray - 5})`;
+            }
+
+            ctx.fillStyle = stoneColor;
+            ctx.fill();
+
+            // White highlight on stones
+            ctx.beginPath();
+            ctx.arc(stoneX - stoneSize * 0.25, stoneY - stoneSize * 0.25,
+                   stoneSize * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.fill();
         }
     }
