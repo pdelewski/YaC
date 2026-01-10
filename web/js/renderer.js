@@ -213,6 +213,27 @@ class Renderer {
             this.drawSandyBeach(ctx, screenX, screenY, size, edge, seededRandom, tileX, tileY);
         }
 
+        // Draw corner beaches where two edges meet
+        const corners = [
+            { edges: ['top', 'left'], corner: 'topLeft', dx: -1, dy: -1 },
+            { edges: ['top', 'right'], corner: 'topRight', dx: 1, dy: -1 },
+            { edges: ['bottom', 'left'], corner: 'bottomLeft', dx: -1, dy: 1 },
+            { edges: ['bottom', 'right'], corner: 'bottomRight', dx: 1, dy: 1 }
+        ];
+
+        for (const c of corners) {
+            // Check if both edges of this corner have ocean OR if the diagonal has ocean
+            const hasEdge1 = oceanEdges.includes(c.edges[0]);
+            const hasEdge2 = oceanEdges.includes(c.edges[1]);
+            const diagonalTile = gameState.getTile(tileX + c.dx, tileY + c.dy);
+            const hasDiagonalOcean = diagonalTile && diagonalTile.terrain === 'Ocean';
+
+            // Draw corner sand if: both edges have ocean, OR one edge has ocean and diagonal is ocean
+            if ((hasEdge1 && hasEdge2) || (hasEdge1 && hasDiagonalOcean) || (hasEdge2 && hasDiagonalOcean)) {
+                this.drawSandyBeachCorner(ctx, screenX, screenY, size, c.corner, seededRandom, tileX, tileY);
+            }
+        }
+
         // Draw decorations along each ocean edge
         for (const edge of oceanEdges) {
             // Number of decoration clusters per edge
@@ -645,6 +666,129 @@ class Renderer {
                 }
                 break;
         }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = size * 0.015;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // Draw sandy beach corner where two edges meet
+    drawSandyBeachCorner(ctx, screenX, screenY, size, corner, seededRandom, tileX, tileY) {
+        const beachDepth = size * (0.25 + seededRandom(corner.charCodeAt(0) * 10) * 0.15);
+
+        ctx.save();
+
+        // Determine corner position
+        let cornerX, cornerY;
+        let angle1, angle2;
+        switch (corner) {
+            case 'topLeft':
+                cornerX = screenX;
+                cornerY = screenY;
+                angle1 = 0;
+                angle2 = Math.PI / 2;
+                break;
+            case 'topRight':
+                cornerX = screenX + size;
+                cornerY = screenY;
+                angle1 = Math.PI / 2;
+                angle2 = Math.PI;
+                break;
+            case 'bottomRight':
+                cornerX = screenX + size;
+                cornerY = screenY + size;
+                angle1 = Math.PI;
+                angle2 = Math.PI * 1.5;
+                break;
+            case 'bottomLeft':
+                cornerX = screenX;
+                cornerY = screenY + size;
+                angle1 = Math.PI * 1.5;
+                angle2 = Math.PI * 2;
+                break;
+        }
+
+        // Draw corner arc fill with gradient
+        const cornerRadius = beachDepth * 1.5;
+        const gradient = ctx.createRadialGradient(
+            cornerX, cornerY, 0,
+            cornerX, cornerY, cornerRadius
+        );
+        gradient.addColorStop(0, '#c8af72');   // Wet sand near corner
+        gradient.addColorStop(0.4, '#d4bc7f'); // Damp sand
+        gradient.addColorStop(0.7, '#e8d5a8'); // Dry sand
+        gradient.addColorStop(1, 'rgba(244, 228, 193, 0)'); // Fade out
+
+        ctx.beginPath();
+        ctx.moveTo(cornerX, cornerY);
+        ctx.arc(cornerX, cornerY, cornerRadius, angle1, angle2);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Add irregular sand patches in corner
+        const numPatches = 2 + Math.floor(seededRandom(corner.charCodeAt(0) * 20) * 3);
+        for (let p = 0; p < numPatches; p++) {
+            const patchAngle = angle1 + (angle2 - angle1) * (0.2 + seededRandom(p * 100 + corner.charCodeAt(0)) * 0.6);
+            const patchDist = cornerRadius * (0.4 + seededRandom(p * 110 + corner.charCodeAt(0)) * 0.5);
+            const patchX = cornerX + Math.cos(patchAngle) * patchDist;
+            const patchY = cornerY + Math.sin(patchAngle) * patchDist;
+            const patchSize = size * (0.05 + seededRandom(p * 120 + corner.charCodeAt(0)) * 0.08);
+
+            ctx.beginPath();
+            const points = 5 + Math.floor(seededRandom(p * 130) * 3);
+            for (let i = 0; i <= points; i++) {
+                const a = (i / points) * Math.PI * 2;
+                const radius = patchSize * (0.7 + seededRandom(p * 140 + i) * 0.4);
+                const px = patchX + Math.cos(a) * radius;
+                const py = patchY + Math.sin(a) * radius * 0.7;
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.closePath();
+
+            const sandColors = ['#f4e4c1', '#e8d5a8', '#dcc898', '#d4bc7f'];
+            const colorIndex = Math.floor(seededRandom(p * 150) * sandColors.length);
+            ctx.fillStyle = sandColors[colorIndex] + '99';
+            ctx.fill();
+        }
+
+        // Add sand grains in corner
+        const numGrains = 4 + Math.floor(seededRandom(corner.charCodeAt(0) * 30) * 6);
+        for (let g = 0; g < numGrains; g++) {
+            const grainAngle = angle1 + (angle2 - angle1) * seededRandom(g * 200);
+            const grainDist = cornerRadius * 0.3 * seededRandom(g * 210);
+            const gx = cornerX + Math.cos(grainAngle) * grainDist;
+            const gy = cornerY + Math.sin(grainAngle) * grainDist;
+            const grainSize = size * (0.003 + seededRandom(g * 220) * 0.006);
+
+            ctx.beginPath();
+            ctx.arc(gx, gy, grainSize, 0, Math.PI * 2);
+            const grainColor = seededRandom(g * 230);
+            if (grainColor < 0.3) {
+                ctx.fillStyle = '#ffffff88';
+            } else if (grainColor < 0.6) {
+                ctx.fillStyle = '#b8984088';
+            } else {
+                ctx.fillStyle = '#d4bc7f88';
+            }
+            ctx.fill();
+        }
+
+        // Draw curved foam line at corner edge
+        ctx.beginPath();
+        ctx.arc(cornerX, cornerY, beachDepth * 0.15, angle1, angle2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = size * 0.02;
+        ctx.stroke();
+
+        // Second foam arc
+        ctx.beginPath();
+        ctx.arc(cornerX, cornerY, beachDepth * 0.35, angle1, angle2);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.lineWidth = size * 0.015;
         ctx.stroke();
