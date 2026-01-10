@@ -862,6 +862,8 @@ class Renderer {
             const neighbor = gameState.getTile(tileX + dir.dx, tileY + dir.dy);
             if (!neighbor) continue;
             if (neighbor.terrain === 'Ocean') continue; // Skip ocean, handled separately
+            if (neighbor.terrain === 'Forest') continue; // Skip forest, looks too busy
+            if (currentTerrain === 'Forest') continue; // Skip if current tile is forest
             if (neighbor.terrain !== currentTerrain) {
                 if (dir.edge) {
                     transitionEdges.push({ edge: dir.edge, terrain: neighbor.terrain });
