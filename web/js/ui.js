@@ -36,9 +36,7 @@ class UI {
 
         // End turn button
         this.endTurnBtn.addEventListener('click', () => {
-            if (gameState.isMyTurn()) {
-                gameSocket.endTurn();
-            }
+            this.tryEndTurn();
         });
 
         // Unit action buttons
@@ -325,6 +323,24 @@ class UI {
         `).join('');
 
         modal.classList.remove('hidden');
+    }
+
+    // Try to end turn with confirmation if there are active units
+    tryEndTurn() {
+        if (!gameState.isMyTurn()) return;
+
+        const activeCount = gameState.getActiveUnitsCount();
+        if (activeCount > 0) {
+            const message = activeCount === 1
+                ? 'You have 1 unit that can still move. End turn anyway?'
+                : `You have ${activeCount} units that can still move. End turn anyway?`;
+
+            if (confirm(message)) {
+                gameSocket.endTurn();
+            }
+        } else {
+            gameSocket.endTurn();
+        }
     }
 
     startGame() {

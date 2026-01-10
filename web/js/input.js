@@ -324,7 +324,7 @@ class InputHandler {
 
             case 'Enter':
                 if (gameState.isMyTurn()) {
-                    gameSocket.endTurn();
+                    ui.tryEndTurn();
                 }
                 break;
 

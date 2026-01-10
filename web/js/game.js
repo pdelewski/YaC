@@ -226,6 +226,20 @@ class GameState {
         return unit && unit.movement_left > 0 && !unit.is_fortified;
     }
 
+    // Check if there are units that can still act
+    hasActiveUnits() {
+        const myPlayer = this.getMyPlayer();
+        if (!myPlayer) return false;
+        return myPlayer.units.some(u => u.movement_left > 0 && !u.is_fortified);
+    }
+
+    // Get count of active units
+    getActiveUnitsCount() {
+        const myPlayer = this.getMyPlayer();
+        if (!myPlayer) return 0;
+        return myPlayer.units.filter(u => u.movement_left > 0 && !u.is_fortified).length;
+    }
+
     // Check if selected unit can found city
     canFoundCity() {
         if (!this.selectedUnit) return false;
