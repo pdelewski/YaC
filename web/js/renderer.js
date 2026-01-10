@@ -169,7 +169,25 @@ class Renderer {
             }
         }
 
-        // Fifth pass: draw resources (on top of beaches)
+        // Fifth pass: draw terrain transition decorations (where 2+ terrain types meet)
+        for (let y = range.startY; y < range.endY; y++) {
+            for (let x = range.startX; x < range.endX; x++) {
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+
+                // Skip ocean tiles
+                if (tile.terrain === 'Ocean') continue;
+
+                const screen = this.worldToScreen(x, y);
+                const s = scaledTileSize;
+                const seed = (x * 7919 + y * 104729) % 1000;
+                const variation = seed / 1000;
+
+                this.drawTerrainTransitionDecorations(tile, x, y, screen.x, screen.y, s, variation);
+            }
+        }
+
+        // Sixth pass: draw resources (on top of beaches and transition decorations)
         for (let y = range.startY; y < range.endY; y++) {
             for (let x = range.startX; x < range.endX; x++) {
                 const tile = gameState.getTile(x, y);
@@ -183,7 +201,7 @@ class Renderer {
             }
         }
 
-        // Sixth pass: draw rivers as smooth paths
+        // Seventh pass: draw rivers as smooth paths
         this.renderRivers();
     }
 
@@ -819,6 +837,299 @@ class Renderer {
         ctx.stroke();
 
         ctx.restore();
+    }
+
+    // Draw decorations where multiple terrain types meet (sand, rocks, stones)
+    drawTerrainTransitionDecorations(tile, tileX, tileY, screenX, screenY, size, variation) {
+        const ctx = this.ctx;
+        const currentTerrain = tile.terrain;
+
+        // Check all 8 neighbors and collect different terrain types with their positions
+        const directions = [
+            { dx: 0, dy: -1, edge: 'top' },
+            { dx: 0, dy: 1, edge: 'bottom' },
+            { dx: -1, dy: 0, edge: 'left' },
+            { dx: 1, dy: 0, edge: 'right' },
+            { dx: -1, dy: -1, corner: 'topLeft' },
+            { dx: 1, dy: -1, corner: 'topRight' },
+            { dx: -1, dy: 1, corner: 'bottomLeft' },
+            { dx: 1, dy: 1, corner: 'bottomRight' }
+        ];
+
+        const transitionEdges = [];
+
+        for (const dir of directions) {
+            const neighbor = gameState.getTile(tileX + dir.dx, tileY + dir.dy);
+            if (!neighbor) continue;
+            if (neighbor.terrain === 'Ocean') continue; // Skip ocean, handled separately
+            if (neighbor.terrain !== currentTerrain) {
+                if (dir.edge) {
+                    transitionEdges.push({ edge: dir.edge, terrain: neighbor.terrain });
+                }
+            }
+        }
+
+        // Draw if any neighbor has a different terrain type
+        if (transitionEdges.length === 0) return;
+
+        // Seeded random for consistent placement
+        const seededRandom = (offset) => {
+            const x = Math.sin((tileX * 127.1 + tileY * 311.7 + offset) * 43758.5453);
+            return x - Math.floor(x);
+        };
+
+        const baseSize = size / 16;
+
+        // Draw transition sand/gravel along edges where different terrains meet
+        for (const trans of transitionEdges) {
+            this.drawTransitionSand(ctx, screenX, screenY, size, trans.edge, seededRandom, tileX, tileY, trans.terrain);
+        }
+
+        // Draw rocks and stones at the center where terrains converge
+        this.drawTransitionRocks(ctx, screenX, screenY, size, seededRandom, transitionEdges.length);
+    }
+
+    // Draw irregular sand/gravel patches along terrain transition edge
+    drawTransitionSand(ctx, screenX, screenY, size, edge, seededRandom, tileX, tileY, adjacentTerrain) {
+        ctx.save();
+
+        // Choose colors based on adjacent terrain type
+        let patchColors;
+        let colorType;
+
+        switch (adjacentTerrain) {
+            case 'Mountains':
+                colorType = 'snow';
+                patchColors = [
+                    '#ffffff', // Pure white
+                    '#f8f8ff', // Ghost white
+                    '#f0f5ff', // Light blue-white
+                    '#e8eef8', // Pale ice
+                    '#f5f9ff', // Snow white
+                ];
+                break;
+            case 'Forest':
+                colorType = 'grass';
+                patchColors = [
+                    '#4a7a3a', // Dark forest green
+                    '#5a8a4a', // Medium green
+                    '#3d6b2d', // Deep green
+                    '#6a9a5a', // Light forest green
+                    '#4d7d3d', // Moss green
+                ];
+                break;
+            case 'Grassland':
+                colorType = 'grass';
+                patchColors = [
+                    '#7cb868', // Light grass green
+                    '#8cc878', // Bright green
+                    '#6aa858', // Medium green
+                    '#9ad888', // Pale green
+                    '#7ac060', // Fresh green
+                ];
+                break;
+            case 'Hills':
+                colorType = 'earth';
+                patchColors = [
+                    '#a89070', // Brown earth
+                    '#b8a080', // Light brown
+                    '#988060', // Medium brown
+                    '#c8b090', // Tan
+                    '#a08868', // Warm brown
+                ];
+                break;
+            case 'Desert':
+                colorType = 'sand';
+                patchColors = [
+                    '#e8d8a8', // Light sand
+                    '#d8c898', // Medium sand
+                    '#f0e0b0', // Pale sand
+                    '#c8b888', // Darker sand
+                    '#e0d0a0', // Warm sand
+                ];
+                break;
+            case 'Plains':
+            default:
+                colorType = 'grass';
+                patchColors = [
+                    '#b8c878', // Yellow-green
+                    '#a8b868', // Olive green
+                    '#c8d888', // Pale yellow-green
+                    '#98a858', // Medium olive
+                    '#c0d080', // Light olive
+                ];
+                break;
+        }
+
+        // Draw irregular sand patches along the edge
+        const numPatches = 4 + Math.floor(seededRandom(edge.charCodeAt(0) * 5) * 4);
+
+        for (let p = 0; p < numPatches; p++) {
+            const progress = (p + seededRandom(p * 50)) / numPatches;
+            const patchDepth = size * (0.08 + seededRandom(p * 60 + edge.charCodeAt(0)) * 0.15);
+            const patchWidth = size * (0.1 + seededRandom(p * 70 + edge.charCodeAt(0)) * 0.15);
+
+            let patchX, patchY;
+            switch (edge) {
+                case 'top':
+                    patchX = screenX + progress * size;
+                    patchY = screenY + patchDepth * 0.5;
+                    break;
+                case 'bottom':
+                    patchX = screenX + progress * size;
+                    patchY = screenY + size - patchDepth * 0.5;
+                    break;
+                case 'left':
+                    patchX = screenX + patchDepth * 0.5;
+                    patchY = screenY + progress * size;
+                    break;
+                case 'right':
+                    patchX = screenX + size - patchDepth * 0.5;
+                    patchY = screenY + progress * size;
+                    break;
+            }
+
+            // Draw irregular blob shape
+            ctx.beginPath();
+            const points = 6 + Math.floor(seededRandom(p * 80) * 4);
+            for (let i = 0; i <= points; i++) {
+                const angle = (i / points) * Math.PI * 2;
+                const radiusVar = 0.6 + seededRandom(p * 90 + i * 10) * 0.5;
+                let rx, ry;
+                if (edge === 'top' || edge === 'bottom') {
+                    rx = patchWidth * radiusVar;
+                    ry = patchDepth * radiusVar;
+                } else {
+                    rx = patchDepth * radiusVar;
+                    ry = patchWidth * radiusVar;
+                }
+                const px = patchX + Math.cos(angle) * rx;
+                const py = patchY + Math.sin(angle) * ry;
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.closePath();
+
+            // Fill with terrain-appropriate color
+            const colorIndex = Math.floor(seededRandom(p * 100) * patchColors.length);
+            ctx.fillStyle = patchColors[colorIndex] + 'cc'; // Semi-transparent
+            ctx.fill();
+        }
+
+        // Add scattered pebbles
+        const numPebbles = 6 + Math.floor(seededRandom(edge.charCodeAt(0) * 20) * 8);
+        for (let p = 0; p < numPebbles; p++) {
+            let px, py;
+            const edgeDepth = size * 0.2;
+            switch (edge) {
+                case 'top':
+                    px = screenX + seededRandom(p * 300) * size;
+                    py = screenY + seededRandom(p * 310) * edgeDepth;
+                    break;
+                case 'bottom':
+                    px = screenX + seededRandom(p * 300) * size;
+                    py = screenY + size - seededRandom(p * 310) * edgeDepth;
+                    break;
+                case 'left':
+                    px = screenX + seededRandom(p * 310) * edgeDepth;
+                    py = screenY + seededRandom(p * 300) * size;
+                    break;
+                case 'right':
+                    px = screenX + size - seededRandom(p * 310) * edgeDepth;
+                    py = screenY + seededRandom(p * 300) * size;
+                    break;
+            }
+
+            const pebbleSize = size * (0.01 + seededRandom(p * 320) * 0.015);
+            ctx.beginPath();
+            ctx.ellipse(px, py, pebbleSize, pebbleSize * 0.7, seededRandom(p * 330) * Math.PI, 0, Math.PI * 2);
+
+            // Color pebbles based on terrain type
+            if (colorType === 'snow') {
+                // Icy/gray pebbles for mountains
+                const iceVal = 180 + Math.floor(seededRandom(p * 340) * 50);
+                ctx.fillStyle = `rgb(${iceVal}, ${iceVal + 5}, ${iceVal + 10})`;
+            } else if (colorType === 'grass') {
+                // Green-tinted pebbles for grass areas
+                const baseVal = 80 + Math.floor(seededRandom(p * 340) * 40);
+                ctx.fillStyle = `rgb(${baseVal - 10}, ${baseVal + 20}, ${baseVal - 20})`;
+            } else if (colorType === 'earth') {
+                // Brown pebbles for hills
+                const brownVal = 100 + Math.floor(seededRandom(p * 340) * 50);
+                ctx.fillStyle = `rgb(${brownVal + 20}, ${brownVal}, ${brownVal - 20})`;
+            } else {
+                // Sandy pebbles for desert/default
+                const sandVal = 150 + Math.floor(seededRandom(p * 340) * 50);
+                ctx.fillStyle = `rgb(${sandVal + 10}, ${sandVal}, ${sandVal - 20})`;
+            }
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // Draw rocks and stones at terrain transition convergence point
+    drawTransitionRocks(ctx, screenX, screenY, size, seededRandom, numTerrains) {
+        // More rocks when more terrains meet
+        const numRocks = Math.min(2 + numTerrains, 5) + Math.floor(seededRandom(100) * 3);
+
+        // Rock colors - gray tones
+        const rockColors = [
+            '#8a8a8a', // Medium gray
+            '#7a7a7a', // Darker gray
+            '#9a9a9a', // Lighter gray
+            '#6a6a6a', // Dark gray
+            '#a0a0a0', // Light gray
+        ];
+
+        for (let r = 0; r < numRocks; r++) {
+            // Position rocks more towards center/edges where transitions meet
+            const angle = seededRandom(r * 400) * Math.PI * 2;
+            const dist = size * (0.15 + seededRandom(r * 410) * 0.25);
+            const rx = screenX + size / 2 + Math.cos(angle) * dist;
+            const ry = screenY + size / 2 + Math.sin(angle) * dist;
+
+            const rockWidth = size * (0.04 + seededRandom(r * 420) * 0.06);
+            const rockHeight = rockWidth * (0.5 + seededRandom(r * 430) * 0.4);
+            const rockAngle = seededRandom(r * 440) * Math.PI;
+
+            // Shadow
+            ctx.beginPath();
+            ctx.ellipse(rx + rockWidth * 0.1, ry + rockHeight * 0.15, rockWidth, rockHeight, rockAngle, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fill();
+
+            // Rock body
+            ctx.beginPath();
+            ctx.ellipse(rx, ry, rockWidth, rockHeight, rockAngle, 0, Math.PI * 2);
+            const colorIndex = Math.floor(seededRandom(r * 450) * rockColors.length);
+            ctx.fillStyle = rockColors[colorIndex];
+            ctx.fill();
+
+            // Highlight
+            ctx.beginPath();
+            ctx.ellipse(rx - rockWidth * 0.2, ry - rockHeight * 0.2, rockWidth * 0.3, rockHeight * 0.25, rockAngle, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.fill();
+        }
+
+        // Add small stones/pebbles scattered around
+        const numStones = 5 + Math.floor(seededRandom(200) * 8);
+        for (let s = 0; s < numStones; s++) {
+            const sx = screenX + seededRandom(s * 500) * size;
+            const sy = screenY + seededRandom(s * 510) * size;
+            const stoneSize = size * (0.01 + seededRandom(s * 520) * 0.015);
+
+            ctx.beginPath();
+            ctx.arc(sx, sy, stoneSize, 0, Math.PI * 2);
+
+            const stoneGray = 100 + Math.floor(seededRandom(s * 530) * 80);
+            ctx.fillStyle = `rgb(${stoneGray}, ${stoneGray}, ${stoneGray})`;
+            ctx.fill();
+        }
     }
 
     // Render all rivers as smooth bezier paths with variable width
