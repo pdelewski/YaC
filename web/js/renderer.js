@@ -156,8 +156,500 @@ class Renderer {
             }
         }
 
-        // Fourth pass: draw rivers as smooth paths
+        // Fourth pass: draw coastal decorations (rocks, shells, etc.)
+        for (let y = range.startY; y < range.endY; y++) {
+            for (let x = range.startX; x < range.endX; x++) {
+                const tile = gameState.getTile(x, y);
+                if (!tile) continue;
+
+                // Only draw on land tiles adjacent to ocean
+                if (tile.terrain === 'Ocean') continue;
+
+                const screen = this.worldToScreen(x, y);
+                const s = scaledTileSize;
+                const seed = (x * 7919 + y * 104729) % 1000;
+                const variation = seed / 1000;
+
+                this.drawCoastalDecorations(tile, x, y, screen.x, screen.y, s, variation);
+            }
+        }
+
+        // Fifth pass: draw rivers as smooth paths
         this.renderRivers();
+    }
+
+    // Draw coastal decorations on land tiles adjacent to ocean
+    drawCoastalDecorations(tile, tileX, tileY, screenX, screenY, size, variation) {
+        const ctx = this.ctx;
+
+        // Check which edges are adjacent to ocean
+        const directions = [
+            { dx: 0, dy: -1, edge: 'top' },
+            { dx: 0, dy: 1, edge: 'bottom' },
+            { dx: -1, dy: 0, edge: 'left' },
+            { dx: 1, dy: 0, edge: 'right' }
+        ];
+
+        const oceanEdges = [];
+        for (const dir of directions) {
+            const neighbor = gameState.getTile(tileX + dir.dx, tileY + dir.dy);
+            if (neighbor && neighbor.terrain === 'Ocean') {
+                oceanEdges.push(dir.edge);
+            }
+        }
+
+        if (oceanEdges.length === 0) return;
+
+        // Seeded random for consistent placement
+        const seededRandom = (offset) => {
+            const x = Math.sin((tileX * 127.1 + tileY * 311.7 + offset) * 43758.5453);
+            return x - Math.floor(x);
+        };
+
+        const baseSize = size / 16;
+
+        // First, draw sandy beach areas along ocean edges
+        for (const edge of oceanEdges) {
+            this.drawSandyBeach(ctx, screenX, screenY, size, edge, seededRandom, tileX, tileY);
+        }
+
+        // Draw decorations along each ocean edge
+        for (const edge of oceanEdges) {
+            // Number of decoration clusters per edge
+            const numClusters = 2 + Math.floor(seededRandom(edge.charCodeAt(0)) * 3);
+
+            for (let c = 0; c < numClusters; c++) {
+                const progress = (c + 0.5) / numClusters;
+                const offsetRand = seededRandom(c * 100 + edge.charCodeAt(0));
+
+                let decorX, decorY;
+                const edgeOffset = size * 0.1 + seededRandom(c * 10) * size * 0.15;
+
+                switch (edge) {
+                    case 'top':
+                        decorX = screenX + progress * size + (offsetRand - 0.5) * size * 0.3;
+                        decorY = screenY + edgeOffset;
+                        break;
+                    case 'bottom':
+                        decorX = screenX + progress * size + (offsetRand - 0.5) * size * 0.3;
+                        decorY = screenY + size - edgeOffset;
+                        break;
+                    case 'left':
+                        decorX = screenX + edgeOffset;
+                        decorY = screenY + progress * size + (offsetRand - 0.5) * size * 0.3;
+                        break;
+                    case 'right':
+                        decorX = screenX + size - edgeOffset;
+                        decorY = screenY + progress * size + (offsetRand - 0.5) * size * 0.3;
+                        break;
+                }
+
+                // Choose decoration type
+                const decorType = seededRandom(c * 50 + edge.charCodeAt(0) * 7);
+
+                if (decorType < 0.35) {
+                    // Coastal rocks
+                    this.drawCoastalRocks(ctx, decorX, decorY, baseSize, seededRandom, c, edge);
+                } else if (decorType < 0.55) {
+                    // Shells and pebbles
+                    this.drawCoastalShells(ctx, decorX, decorY, baseSize, seededRandom, c, edge);
+                } else if (decorType < 0.7) {
+                    // Driftwood
+                    this.drawCoastalDriftwood(ctx, decorX, decorY, baseSize, seededRandom, c, edge);
+                } else if (decorType < 0.85) {
+                    // Seaweed
+                    this.drawSeaweed(ctx, decorX, decorY, baseSize, seededRandom, c, edge);
+                } else {
+                    // Foam/water marks
+                    this.drawFoamMarks(ctx, decorX, decorY, baseSize, seededRandom, c, edge);
+                }
+            }
+        }
+    }
+
+    // Draw coastal rocks
+    drawCoastalRocks(ctx, x, y, baseSize, seededRandom, index, edge) {
+        const numRocks = 2 + Math.floor(seededRandom(index * 200) * 4);
+
+        for (let r = 0; r < numRocks; r++) {
+            const rx = x + (seededRandom(index * 210 + r) - 0.5) * baseSize * 3;
+            const ry = y + (seededRandom(index * 220 + r) - 0.5) * baseSize * 2;
+            const rockSize = baseSize * (0.4 + seededRandom(index * 230 + r) * 0.6);
+
+            // Shadow
+            ctx.beginPath();
+            ctx.ellipse(rx + rockSize * 0.15, ry + rockSize * 0.1, rockSize, rockSize * 0.5, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fill();
+
+            // Rock body
+            ctx.beginPath();
+            ctx.ellipse(rx, ry, rockSize, rockSize * (0.6 + seededRandom(index * 240 + r) * 0.3),
+                       seededRandom(index * 250 + r) * Math.PI * 0.5, 0, Math.PI * 2);
+
+            // Gray/dark rock colors
+            const grayBase = 70 + Math.floor(seededRandom(index * 260 + r) * 50);
+            ctx.fillStyle = `rgb(${grayBase + 10}, ${grayBase + 5}, ${grayBase})`;
+            ctx.fill();
+
+            // Wet highlight
+            ctx.beginPath();
+            ctx.ellipse(rx - rockSize * 0.2, ry - rockSize * 0.2, rockSize * 0.35, rockSize * 0.25, -0.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+        }
+    }
+
+    // Draw coastal shells and pebbles
+    drawCoastalShells(ctx, x, y, baseSize, seededRandom, index, edge) {
+        const numItems = 4 + Math.floor(seededRandom(index * 300) * 5);
+
+        for (let s = 0; s < numItems; s++) {
+            const sx = x + (seededRandom(index * 310 + s) - 0.5) * baseSize * 3;
+            const sy = y + (seededRandom(index * 320 + s) - 0.5) * baseSize * 2;
+
+            if (seededRandom(index * 330 + s) > 0.5) {
+                // Shell
+                const shellSize = baseSize * (0.15 + seededRandom(index * 340 + s) * 0.15);
+                const shellAngle = seededRandom(index * 350 + s) * Math.PI * 2;
+
+                ctx.save();
+                ctx.translate(sx, sy);
+                ctx.rotate(shellAngle);
+
+                const shellColor = seededRandom(index * 360 + s);
+                if (shellColor < 0.4) {
+                    ctx.fillStyle = '#fff8f0';
+                } else if (shellColor < 0.7) {
+                    ctx.fillStyle = '#ffe0d0';
+                } else {
+                    ctx.fillStyle = '#e8e0d0';
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, shellSize, -Math.PI * 0.4, Math.PI * 0.4);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            } else {
+                // Pebble
+                const pebbleSize = baseSize * (0.08 + seededRandom(index * 370 + s) * 0.12);
+                ctx.beginPath();
+                ctx.ellipse(sx, sy, pebbleSize, pebbleSize * 0.7, seededRandom(index * 380 + s) * Math.PI, 0, Math.PI * 2);
+                const gray = 140 + Math.floor(seededRandom(index * 390 + s) * 80);
+                ctx.fillStyle = `rgb(${gray}, ${gray - 5}, ${gray - 10})`;
+                ctx.fill();
+            }
+        }
+    }
+
+    // Draw coastal driftwood
+    drawCoastalDriftwood(ctx, x, y, baseSize, seededRandom, index, edge) {
+        const length = baseSize * (1.5 + seededRandom(index * 400) * 2.5);
+        const thickness = baseSize * (0.2 + seededRandom(index * 410) * 0.2);
+        const angle = seededRandom(index * 420) * Math.PI;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.fillRect(-length / 2 + 2, 2, length, thickness);
+
+        // Wood - weathered gray/tan
+        const woodGray = 150 + Math.floor(seededRandom(index * 430) * 40);
+        ctx.fillStyle = `rgb(${woodGray}, ${woodGray - 10}, ${woodGray - 25})`;
+        ctx.fillRect(-length / 2, -thickness / 2, length, thickness);
+
+        // Grain
+        ctx.strokeStyle = `rgb(${woodGray - 30}, ${woodGray - 40}, ${woodGray - 50})`;
+        ctx.lineWidth = 0.5;
+        for (let g = 0; g < 2; g++) {
+            ctx.beginPath();
+            ctx.moveTo(-length / 2, -thickness / 4 + g * thickness / 2);
+            ctx.lineTo(length / 2, -thickness / 4 + g * thickness / 2 + (seededRandom(index * 440 + g) - 0.5) * thickness * 0.3);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    // Draw seaweed
+    drawSeaweed(ctx, x, y, baseSize, seededRandom, index, edge) {
+        const numStrands = 2 + Math.floor(seededRandom(index * 500) * 3);
+
+        for (let s = 0; s < numStrands; s++) {
+            const sx = x + (seededRandom(index * 510 + s) - 0.5) * baseSize * 2;
+            const strandLength = baseSize * (0.8 + seededRandom(index * 520 + s) * 1);
+
+            ctx.strokeStyle = seededRandom(index * 530 + s) > 0.5 ? '#2d5a1d' : '#3d6b2d';
+            ctx.lineWidth = baseSize * 0.1;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(sx, y);
+            const curve1X = sx + (seededRandom(index * 540 + s) - 0.5) * baseSize;
+            const curve1Y = y - strandLength * 0.5;
+            const endX = sx + (seededRandom(index * 550 + s) - 0.5) * baseSize * 0.5;
+            const endY = y - strandLength;
+            ctx.quadraticCurveTo(curve1X, curve1Y, endX, endY);
+            ctx.stroke();
+
+            // Bulbs on seaweed
+            if (seededRandom(index * 560 + s) > 0.5) {
+                ctx.beginPath();
+                ctx.arc(endX, endY, baseSize * 0.08, 0, Math.PI * 2);
+                ctx.fillStyle = '#4a7a3a';
+                ctx.fill();
+            }
+        }
+    }
+
+    // Draw foam marks on sand
+    drawFoamMarks(ctx, x, y, baseSize, seededRandom, index, edge) {
+        const foamWidth = baseSize * (2 + seededRandom(index * 600) * 2);
+        const foamHeight = baseSize * (0.3 + seededRandom(index * 610) * 0.3);
+
+        // Foam line
+        ctx.beginPath();
+        ctx.ellipse(x, y, foamWidth, foamHeight, seededRandom(index * 620) * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fill();
+
+        // Bubbles
+        const numBubbles = 3 + Math.floor(seededRandom(index * 630) * 4);
+        for (let b = 0; b < numBubbles; b++) {
+            const bx = x + (seededRandom(index * 640 + b) - 0.5) * foamWidth * 1.5;
+            const by = y + (seededRandom(index * 650 + b) - 0.5) * foamHeight * 2;
+            const bubbleSize = baseSize * (0.03 + seededRandom(index * 660 + b) * 0.05);
+
+            ctx.beginPath();
+            ctx.arc(bx, by, bubbleSize, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fill();
+        }
+    }
+
+    // Draw sandy beach area along an ocean edge
+    drawSandyBeach(ctx, screenX, screenY, size, edge, seededRandom, tileX, tileY) {
+        const beachDepth = size * (0.25 + seededRandom(edge.charCodeAt(0) * 10) * 0.15);
+
+        // Sand colors - warm beach tones
+        const sandColors = [
+            '#f4e4c1', // Light sand
+            '#e8d5a8', // Medium sand
+            '#dcc898', // Warm sand
+            '#d4bc7f', // Golden sand
+            '#c8af72', // Darker sand
+        ];
+
+        // Base sand gradient
+        ctx.save();
+
+        // Define the beach strip area based on edge
+        let x1, y1, x2, y2, gradX1, gradY1, gradX2, gradY2;
+        switch (edge) {
+            case 'top':
+                x1 = screenX; y1 = screenY;
+                x2 = screenX + size; y2 = screenY + beachDepth;
+                gradX1 = screenX; gradY1 = screenY;
+                gradX2 = screenX; gradY2 = screenY + beachDepth;
+                break;
+            case 'bottom':
+                x1 = screenX; y1 = screenY + size - beachDepth;
+                x2 = screenX + size; y2 = screenY + size;
+                gradX1 = screenX; gradY1 = screenY + size;
+                gradX2 = screenX; gradY2 = screenY + size - beachDepth;
+                break;
+            case 'left':
+                x1 = screenX; y1 = screenY;
+                x2 = screenX + beachDepth; y2 = screenY + size;
+                gradX1 = screenX; gradY1 = screenY;
+                gradX2 = screenX + beachDepth; gradY2 = screenY;
+                break;
+            case 'right':
+                x1 = screenX + size - beachDepth; y1 = screenY;
+                x2 = screenX + size; y2 = screenY + size;
+                gradX1 = screenX + size; gradY1 = screenY;
+                gradX2 = screenX + size - beachDepth; gradY2 = screenY;
+                break;
+        }
+
+        // Draw main sand strip with gradient (wet to dry)
+        const sandGradient = ctx.createLinearGradient(gradX1, gradY1, gradX2, gradY2);
+        sandGradient.addColorStop(0, '#c8af72');   // Wet sand near water
+        sandGradient.addColorStop(0.3, '#d4bc7f'); // Damp sand
+        sandGradient.addColorStop(0.7, '#e8d5a8'); // Dry sand
+        sandGradient.addColorStop(1, 'rgba(244, 228, 193, 0.4)'); // Fade into terrain
+
+        ctx.fillStyle = sandGradient;
+        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+
+        // Add irregular sand patches that extend beyond the base strip
+        const numPatches = 3 + Math.floor(seededRandom(edge.charCodeAt(0) * 20) * 4);
+        for (let p = 0; p < numPatches; p++) {
+            const patchProgress = (p + 0.5) / numPatches;
+            const patchSize = size * (0.08 + seededRandom(p * 100 + edge.charCodeAt(0)) * 0.12);
+            const extraDepth = beachDepth * (0.3 + seededRandom(p * 110 + edge.charCodeAt(0)) * 0.5);
+
+            let patchX, patchY;
+            switch (edge) {
+                case 'top':
+                    patchX = screenX + patchProgress * size + (seededRandom(p * 120) - 0.5) * size * 0.2;
+                    patchY = screenY + beachDepth + extraDepth * 0.5;
+                    break;
+                case 'bottom':
+                    patchX = screenX + patchProgress * size + (seededRandom(p * 120) - 0.5) * size * 0.2;
+                    patchY = screenY + size - beachDepth - extraDepth * 0.5;
+                    break;
+                case 'left':
+                    patchX = screenX + beachDepth + extraDepth * 0.5;
+                    patchY = screenY + patchProgress * size + (seededRandom(p * 120) - 0.5) * size * 0.2;
+                    break;
+                case 'right':
+                    patchX = screenX + size - beachDepth - extraDepth * 0.5;
+                    patchY = screenY + patchProgress * size + (seededRandom(p * 120) - 0.5) * size * 0.2;
+                    break;
+            }
+
+            // Draw irregular sand patch
+            ctx.beginPath();
+            const points = 6 + Math.floor(seededRandom(p * 130) * 4);
+            for (let i = 0; i <= points; i++) {
+                const angle = (i / points) * Math.PI * 2;
+                const radius = patchSize * (0.7 + seededRandom(p * 140 + i) * 0.4);
+                const px = patchX + Math.cos(angle) * radius;
+                const py = patchY + Math.sin(angle) * radius * 0.6;
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.closePath();
+
+            const colorIndex = Math.floor(seededRandom(p * 150) * sandColors.length);
+            ctx.fillStyle = sandColors[colorIndex] + 'aa'; // Semi-transparent
+            ctx.fill();
+        }
+
+        // Add sand grains/texture dots
+        const numGrains = 8 + Math.floor(seededRandom(edge.charCodeAt(0) * 30) * 12);
+        for (let g = 0; g < numGrains; g++) {
+            let gx, gy;
+            const grainInset = beachDepth * 0.8;
+            switch (edge) {
+                case 'top':
+                    gx = screenX + seededRandom(g * 200) * size;
+                    gy = screenY + seededRandom(g * 210) * grainInset;
+                    break;
+                case 'bottom':
+                    gx = screenX + seededRandom(g * 200) * size;
+                    gy = screenY + size - seededRandom(g * 210) * grainInset;
+                    break;
+                case 'left':
+                    gx = screenX + seededRandom(g * 210) * grainInset;
+                    gy = screenY + seededRandom(g * 200) * size;
+                    break;
+                case 'right':
+                    gx = screenX + size - seededRandom(g * 210) * grainInset;
+                    gy = screenY + seededRandom(g * 200) * size;
+                    break;
+            }
+
+            const grainSize = size * (0.003 + seededRandom(g * 220) * 0.007);
+            const grainColor = seededRandom(g * 230);
+
+            ctx.beginPath();
+            ctx.arc(gx, gy, grainSize, 0, Math.PI * 2);
+            if (grainColor < 0.3) {
+                ctx.fillStyle = '#ffffff88'; // Light grain
+            } else if (grainColor < 0.6) {
+                ctx.fillStyle = '#b8984088'; // Dark grain
+            } else {
+                ctx.fillStyle = '#d4bc7f88'; // Medium grain
+            }
+            ctx.fill();
+        }
+
+        // Add wet sand line at the water's edge
+        ctx.beginPath();
+        const waveVariation = size * 0.02;
+        switch (edge) {
+            case 'top':
+                ctx.moveTo(screenX, screenY);
+                for (let w = 0; w <= size; w += size / 8) {
+                    const waveY = screenY + Math.sin(w * 0.1 + tileX) * waveVariation;
+                    ctx.lineTo(screenX + w, waveY);
+                }
+                break;
+            case 'bottom':
+                ctx.moveTo(screenX, screenY + size);
+                for (let w = 0; w <= size; w += size / 8) {
+                    const waveY = screenY + size - Math.sin(w * 0.1 + tileX) * waveVariation;
+                    ctx.lineTo(screenX + w, waveY);
+                }
+                break;
+            case 'left':
+                ctx.moveTo(screenX, screenY);
+                for (let w = 0; w <= size; w += size / 8) {
+                    const waveX = screenX + Math.sin(w * 0.1 + tileY) * waveVariation;
+                    ctx.lineTo(waveX, screenY + w);
+                }
+                break;
+            case 'right':
+                ctx.moveTo(screenX + size, screenY);
+                for (let w = 0; w <= size; w += size / 8) {
+                    const waveX = screenX + size - Math.sin(w * 0.1 + tileY) * waveVariation;
+                    ctx.lineTo(waveX, screenY + w);
+                }
+                break;
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = size * 0.02;
+        ctx.stroke();
+
+        // Add foam line slightly inward
+        ctx.beginPath();
+        const foamOffset = size * 0.05;
+        switch (edge) {
+            case 'top':
+                ctx.moveTo(screenX, screenY + foamOffset);
+                for (let w = 0; w <= size; w += size / 6) {
+                    const waveY = screenY + foamOffset + Math.sin(w * 0.15 + tileX + 1) * waveVariation * 1.5;
+                    ctx.lineTo(screenX + w, waveY);
+                }
+                break;
+            case 'bottom':
+                ctx.moveTo(screenX, screenY + size - foamOffset);
+                for (let w = 0; w <= size; w += size / 6) {
+                    const waveY = screenY + size - foamOffset - Math.sin(w * 0.15 + tileX + 1) * waveVariation * 1.5;
+                    ctx.lineTo(screenX + w, waveY);
+                }
+                break;
+            case 'left':
+                ctx.moveTo(screenX + foamOffset, screenY);
+                for (let w = 0; w <= size; w += size / 6) {
+                    const waveX = screenX + foamOffset + Math.sin(w * 0.15 + tileY + 1) * waveVariation * 1.5;
+                    ctx.lineTo(waveX, screenY + w);
+                }
+                break;
+            case 'right':
+                ctx.moveTo(screenX + size - foamOffset, screenY);
+                for (let w = 0; w <= size; w += size / 6) {
+                    const waveX = screenX + size - foamOffset - Math.sin(w * 0.15 + tileY + 1) * waveVariation * 1.5;
+                    ctx.lineTo(waveX, screenY + w);
+                }
+                break;
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = size * 0.015;
+        ctx.stroke();
+
+        ctx.restore();
     }
 
     // Render all rivers as smooth bezier paths with variable width
