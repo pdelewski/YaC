@@ -2667,21 +2667,9 @@ class Renderer {
                     );
                 }
 
-                // Blinking highlight for selected unit
-                if (gameState.selectedUnit && unit.id === gameState.selectedUnit.id) {
-                    if (Math.floor(Date.now() / 400) % 2 === 0) {
-                        this.ctx.strokeStyle = '#fff';
-                        this.ctx.lineWidth = 3;
-                        this.ctx.strokeRect(
-                            screen.x + scaledTileSize * 0.02,
-                            screen.y + scaledTileSize * 0.02,
-                            scaledTileSize * 0.96,
-                            scaledTileSize * 0.96
-                        );
-                    }
-                }
                 // Blinking border for units that can still act (my units with movement left)
-                else if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified) {
+                if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified &&
+                    !(gameState.selectedUnit && unit.id === gameState.selectedUnit.id)) {
                     if (Math.floor(Date.now() / 600) % 2 === 0) {
                         this.ctx.strokeStyle = '#ffff00';
                         this.ctx.lineWidth = 2;
@@ -3132,15 +3120,17 @@ class Renderer {
             const unit = gameState.selectedUnit;
             const screen = this.worldToScreen(unit.x, unit.y);
 
-            // Highlight - black border, larger
-            this.ctx.strokeStyle = '#000000';
-            this.ctx.lineWidth = 5;
-            this.ctx.strokeRect(
-                screen.x - 2,
-                screen.y - 2,
-                scaledTileSize + 4,
-                scaledTileSize + 4
-            );
+            // Blinking highlight - black border, larger
+            if (Math.floor(Date.now() / 400) % 2 === 0) {
+                this.ctx.strokeStyle = '#000000';
+                this.ctx.lineWidth = 5;
+                this.ctx.strokeRect(
+                    screen.x - 2,
+                    screen.y - 2,
+                    scaledTileSize + 4,
+                    scaledTileSize + 4
+                );
+            }
 
             // Show movement range when in move mode
             if (gameState.mode === 'move' && unit.movement_left > 0) {
