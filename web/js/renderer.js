@@ -198,7 +198,24 @@ class Renderer {
             }
         }
 
-        if (oceanEdges.length === 0) return;
+        // Check diagonal neighbors for corner beaches
+        const diagonals = [
+            { dx: -1, dy: -1, corner: 'topLeft' },
+            { dx: 1, dy: -1, corner: 'topRight' },
+            { dx: -1, dy: 1, corner: 'bottomLeft' },
+            { dx: 1, dy: 1, corner: 'bottomRight' }
+        ];
+
+        const oceanDiagonals = [];
+        for (const diag of diagonals) {
+            const neighbor = gameState.getTile(tileX + diag.dx, tileY + diag.dy);
+            if (neighbor && neighbor.terrain === 'Ocean') {
+                oceanDiagonals.push(diag.corner);
+            }
+        }
+
+        // Return early only if no ocean neighbors at all (cardinal or diagonal)
+        if (oceanEdges.length === 0 && oceanDiagonals.length === 0) return;
 
         // Seeded random for consistent placement
         const seededRandom = (offset) => {
@@ -213,23 +230,22 @@ class Renderer {
             this.drawSandyBeach(ctx, screenX, screenY, size, edge, seededRandom, tileX, tileY);
         }
 
-        // Draw corner beaches where two edges meet
+        // Draw corner beaches where two edges meet or diagonal has ocean
         const corners = [
-            { edges: ['top', 'left'], corner: 'topLeft', dx: -1, dy: -1 },
-            { edges: ['top', 'right'], corner: 'topRight', dx: 1, dy: -1 },
-            { edges: ['bottom', 'left'], corner: 'bottomLeft', dx: -1, dy: 1 },
-            { edges: ['bottom', 'right'], corner: 'bottomRight', dx: 1, dy: 1 }
+            { edges: ['top', 'left'], corner: 'topLeft' },
+            { edges: ['top', 'right'], corner: 'topRight' },
+            { edges: ['bottom', 'left'], corner: 'bottomLeft' },
+            { edges: ['bottom', 'right'], corner: 'bottomRight' }
         ];
 
         for (const c of corners) {
             // Check if both edges of this corner have ocean OR if the diagonal has ocean
             const hasEdge1 = oceanEdges.includes(c.edges[0]);
             const hasEdge2 = oceanEdges.includes(c.edges[1]);
-            const diagonalTile = gameState.getTile(tileX + c.dx, tileY + c.dy);
-            const hasDiagonalOcean = diagonalTile && diagonalTile.terrain === 'Ocean';
+            const hasDiagonalOcean = oceanDiagonals.includes(c.corner);
 
-            // Draw corner sand if: both edges have ocean, OR one edge has ocean and diagonal is ocean
-            if ((hasEdge1 && hasEdge2) || (hasEdge1 && hasDiagonalOcean) || (hasEdge2 && hasDiagonalOcean)) {
+            // Draw corner sand if: both edges have ocean, OR diagonal is ocean
+            if ((hasEdge1 && hasEdge2) || hasDiagonalOcean) {
                 this.drawSandyBeachCorner(ctx, screenX, screenY, size, c.corner, seededRandom, tileX, tileY);
             }
         }
