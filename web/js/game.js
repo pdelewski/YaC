@@ -43,6 +43,21 @@ class GameState {
                 this.selectedUnit = unit;
             }
         }
+
+        // Auto-select first available unit if none selected and it's my turn
+        if (!this.selectedUnit && this.isMyTurn()) {
+            const myPlayer = this.getMyPlayer();
+            if (myPlayer && myPlayer.units.length > 0) {
+                // Prefer units that can still move
+                const activeUnit = myPlayer.units.find(u => u.movement_left > 0 && !u.is_fortified);
+                if (activeUnit) {
+                    this.selectedUnit = activeUnit;
+                } else {
+                    // Otherwise select first unit
+                    this.selectedUnit = myPlayer.units[0];
+                }
+            }
+        }
     }
 
     // Process map data into a 2D array for faster access

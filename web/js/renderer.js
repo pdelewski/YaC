@@ -2667,22 +2667,22 @@ class Renderer {
                     );
                 }
 
-                // Small icon for units that can still act (my units with movement left)
-                if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified &&
-                    !(gameState.selectedUnit && unit.id === gameState.selectedUnit.id)) {
-                    // Draw a small green arrow/chevron in the top-right corner
-                    const iconSize = scaledTileSize * 0.2;
-                    const iconX = screen.x + scaledTileSize - iconSize - 2;
-                    const iconY = screen.y + 2;
+                // "Active" label for units that can still act (my units with movement left)
+                if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified) {
+                    const fontSize = Math.max(8, scaledTileSize * 0.18);
+                    this.ctx.font = `bold ${fontSize}px sans-serif`;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'top';
 
-                    this.ctx.fillStyle = '#00cc00';
-                    this.ctx.beginPath();
-                    // Arrow pointing right
-                    this.ctx.moveTo(iconX, iconY + iconSize * 0.2);
-                    this.ctx.lineTo(iconX + iconSize * 0.7, iconY + iconSize * 0.5);
-                    this.ctx.lineTo(iconX, iconY + iconSize * 0.8);
-                    this.ctx.closePath();
-                    this.ctx.fill();
+                    // Draw text with outline for visibility
+                    const textX = screen.x + scaledTileSize / 2;
+                    const textY = screen.y + 2;
+
+                    this.ctx.strokeStyle = '#000';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeText('Active', textX, textY);
+                    this.ctx.fillStyle = '#00ff00';
+                    this.ctx.fillText('Active', textX, textY);
                 }
             }
         }
