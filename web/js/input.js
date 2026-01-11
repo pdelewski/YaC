@@ -363,10 +363,16 @@ class InputHandler {
 
         switch (e.key) {
             case 'Escape':
-                gameState.clearSelection();
-                gameState.setMode('normal');
+                // If in a special mode, just cancel the mode but keep selection
+                if (gameState.mode !== 'normal') {
+                    gameState.setMode('normal');
+                    ui.updateModeButtons();
+                } else {
+                    // If already in normal mode, clear selection
+                    gameState.clearSelection();
+                    ui.updateSelectionPanel();
+                }
                 ui.hideCityModal();
-                ui.updateSelectionPanel();
                 break;
 
             case 'f':
