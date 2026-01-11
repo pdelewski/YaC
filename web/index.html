@@ -67,6 +67,8 @@
                         <div class="menu-separator"></div>
                         <div class="menu-option" id="menu-view-units">Units Gallery</div>
                         <div class="menu-option" id="menu-view-resources">Resources Gallery</div>
+                        <div class="menu-separator"></div>
+                        <div class="menu-option" id="menu-view-goto">Goto Dashboard</div>
                     </div>
                 </div>
             </div>
@@ -123,6 +125,7 @@
                         <button id="btn-move" class="btn-unit" title="Move (M)">Move</button>
                         <button id="btn-attack" class="btn-unit" title="Attack (A)">Attack</button>
                         <button id="btn-fortify" class="btn-unit" title="Fortify (F)">Fortify</button>
+                        <button id="btn-goto" class="btn-unit" title="Goto (O)">Goto</button>
                         <button id="btn-found-city" class="btn-unit hidden" title="Found City (B)">Build City</button>
                         <button id="btn-build-road" class="btn-unit hidden" title="Build Road (R)">Build Road</button>
                         <button id="btn-skip" class="btn-unit" title="Skip (S)">Skip</button>
@@ -136,7 +139,7 @@
                         <kbd>Shift+Arrows</kbd> Pan map <kbd>Numpad</kbd> 8-dir move<br>
                         <kbd>F</kbd> Fortify <kbd>B</kbd> Build City <kbd>R</kbd> Road<br>
                         <kbd>Space</kbd> Skip <kbd>Tab</kbd> Next unit <kbd>Enter</kbd> End turn<br>
-                        <kbd>G</kbd> Group <kbd>U</kbd> Ungroup
+                        <kbd>G</kbd> Group <kbd>U</kbd> Ungroup <kbd>O</kbd> Goto
                     </div>
                 </div>
             </div>
@@ -197,6 +200,15 @@
                     <span class="close-btn" id="resources-modal-close">&times;</span>
                     <h2>Resources Gallery</h2>
                     <div id="resources-gallery"></div>
+                </div>
+            </div>
+
+            <!-- Goto Dashboard Modal -->
+            <div id="goto-modal" class="modal hidden">
+                <div class="modal-content modal-wide">
+                    <span class="close-btn" id="goto-modal-close">&times;</span>
+                    <h2>Goto Dashboard</h2>
+                    <div id="goto-list"></div>
                 </div>
             </div>
         </div>

@@ -210,6 +210,29 @@ class GameWebSocket {
         });
     }
 
+    // Goto actions
+    setGoto(unitId, gotoX, gotoY) {
+        return this.sendAction('set_goto', {
+            unit_id: unitId,
+            goto_x: gotoX,
+            goto_y: gotoY
+        });
+    }
+
+    clearGoto(unitId) {
+        return this.sendAction('clear_goto', {
+            unit_id: unitId
+        });
+    }
+
+    setGroupGoto(groupId, gotoX, gotoY) {
+        return this.sendAction('set_group_goto', {
+            group_id: groupId,
+            goto_x: gotoX,
+            goto_y: gotoY
+        });
+    }
+
     // Callback setters
     onGameState(callback) {
         this.callbacks.onGameState = callback;

@@ -340,6 +340,8 @@ func (g *GameState) advanceToNextPlayer() {
 		g.Phase = PhaseAITurn
 	} else {
 		g.Phase = PhasePlayerTurn
+		// Process goto movements for human player at turn start
+		g.ProcessGotoMovements(g.Players[g.CurrentPlayer])
 	}
 }
 
@@ -428,4 +430,102 @@ func (g *GameState) GetAIPlayers() []*Player {
 		}
 	}
 	return aiPlayers
+}
+
+// ProcessGotoMovements processes automatic goto movements for a player
+// Returns units that have arrived at their destination
+func (g *GameState) ProcessGotoMovements(player *Player) []*Unit {
+	arrivedUnits := make([]*Unit, 0)
+
+	for _, unit := range player.Units {
+		if !unit.HasGoto {
+			continue
+		}
+
+		// Check if already at destination
+		if unit.HasReachedGoto() {
+			unit.ClearGoto()
+			arrivedUnits = append(arrivedUnits, unit)
+			continue
+		}
+
+		// Move towards destination while unit has movement
+		for unit.MovementLeft > 0 && unit.HasGoto {
+			// Find best next step towards destination
+			nextX, nextY := g.getNextStepTowards(unit, unit.GotoX, unit.GotoY)
+			if nextX == -1 && nextY == -1 {
+				// No valid path, stop but keep goto
+				break
+			}
+
+			// Check if move is valid
+			if !g.IsValidMove(unit, nextX, nextY) {
+				break
+			}
+
+			// Execute move
+			cost := g.GetMovementCost(unit.X, unit.Y, nextX, nextY)
+			if cost > unit.MovementLeft {
+				break
+			}
+
+			unit.X = nextX
+			unit.Y = nextY
+			unit.MovementLeft -= cost
+			unit.IsFortified = false
+
+			// Check if arrived
+			if unit.HasReachedGoto() {
+				unit.ClearGoto()
+				arrivedUnits = append(arrivedUnits, unit)
+				break
+			}
+		}
+	}
+
+	return arrivedUnits
+}
+
+// getNextStepTowards finds the best adjacent tile to move towards destination
+func (g *GameState) getNextStepTowards(unit *Unit, goalX, goalY int) (int, int) {
+	bestX, bestY := -1, -1
+	bestDistance := 999999
+
+	// Check all 8 directions
+	for dx := -1; dx <= 1; dx++ {
+		for dy := -1; dy <= 1; dy++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+
+			newX := unit.X + dx
+			newY := unit.Y + dy
+
+			// Check bounds
+			if newX < 0 || newX >= g.Map.Width || newY < 0 || newY >= g.Map.Height {
+				continue
+			}
+
+			// Check if valid move
+			if !g.IsValidMove(unit, newX, newY) {
+				continue
+			}
+
+			// Check movement cost
+			cost := g.GetMovementCost(unit.X, unit.Y, newX, newY)
+			if cost > unit.MovementLeft {
+				continue
+			}
+
+			// Calculate distance to goal (Manhattan distance)
+			distance := abs(newX-goalX) + abs(newY-goalY)
+			if distance < bestDistance {
+				bestDistance = distance
+				bestX = newX
+				bestY = newY
+			}
+		}
+	}
+
+	return bestX, bestY
 }

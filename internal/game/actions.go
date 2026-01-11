@@ -811,3 +811,126 @@ func (a *AttackGroupAction) Execute(g *GameState) error {
 
 	return nil
 }
+
+// SetGotoAction sets a goto destination for a unit
+type SetGotoAction struct {
+	UnitID string `json:"unit_id"`
+	GotoX  int    `json:"goto_x"`
+	GotoY  int    `json:"goto_y"`
+}
+
+// Validate checks if the goto is valid
+func (a *SetGotoAction) Validate(g *GameState, playerID string) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	if unit.OwnerID != playerID {
+		return ErrNotYourUnit
+	}
+
+	// Check destination is valid (on map and passable)
+	if a.GotoX < 0 || a.GotoX >= g.Map.Width || a.GotoY < 0 || a.GotoY >= g.Map.Height {
+		return ErrInvalidMove
+	}
+
+	tile := g.Map.GetTile(a.GotoX, a.GotoY)
+	if tile == nil || tile.Terrain == TerrainOcean || tile.Terrain == TerrainMountains {
+		return ErrInvalidMove
+	}
+
+	return nil
+}
+
+// Execute sets the goto destination
+func (a *SetGotoAction) Execute(g *GameState) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	unit.SetGoto(a.GotoX, a.GotoY)
+	return nil
+}
+
+// ClearGotoAction clears a goto destination for a unit
+type ClearGotoAction struct {
+	UnitID string `json:"unit_id"`
+}
+
+// Validate checks if the unit exists and is owned by player
+func (a *ClearGotoAction) Validate(g *GameState, playerID string) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	if unit.OwnerID != playerID {
+		return ErrNotYourUnit
+	}
+
+	return nil
+}
+
+// Execute clears the goto destination
+func (a *ClearGotoAction) Execute(g *GameState) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	unit.ClearGoto()
+	return nil
+}
+
+// SetGroupGotoAction sets a goto destination for all units in a group
+type SetGroupGotoAction struct {
+	GroupID string `json:"group_id"`
+	GotoX   int    `json:"goto_x"`
+	GotoY   int    `json:"goto_y"`
+}
+
+// Validate checks if the group exists and goto is valid
+func (a *SetGroupGotoAction) Validate(g *GameState, playerID string) error {
+	// Find units in this group
+	found := false
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID {
+				if unit.OwnerID != playerID {
+					return ErrNotYourUnit
+				}
+				found = true
+			}
+		}
+	}
+
+	if !found {
+		return errors.New("group not found")
+	}
+
+	// Check destination is valid
+	if a.GotoX < 0 || a.GotoX >= g.Map.Width || a.GotoY < 0 || a.GotoY >= g.Map.Height {
+		return ErrInvalidMove
+	}
+
+	tile := g.Map.GetTile(a.GotoX, a.GotoY)
+	if tile == nil || tile.Terrain == TerrainOcean || tile.Terrain == TerrainMountains {
+		return ErrInvalidMove
+	}
+
+	return nil
+}
+
+// Execute sets the goto destination for all units in the group
+func (a *SetGroupGotoAction) Execute(g *GameState) error {
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID {
+				unit.SetGoto(a.GotoX, a.GotoY)
+			}
+		}
+	}
+	return nil
+}

@@ -136,6 +136,9 @@ type Unit struct {
 	IsVeteran    bool     `json:"is_veteran"`
 	IsFortified  bool     `json:"is_fortified"`
 	GroupID      string   `json:"group_id,omitempty"` // Empty string means ungrouped
+	HasGoto      bool     `json:"has_goto"`           // Whether unit has a goto destination
+	GotoX        int      `json:"goto_x"`             // Goto destination X
+	GotoY        int      `json:"goto_y"`             // Goto destination Y
 }
 
 // NewUnit creates a new unit at the specified location
@@ -239,4 +242,23 @@ func (u *Unit) CanBuildRoad() bool {
 // IsSiegeUnit returns whether this unit bypasses city walls
 func (u *Unit) IsSiegeUnit() bool {
 	return u.Template().IsSiege
+}
+
+// SetGoto sets a goto destination for the unit
+func (u *Unit) SetGoto(x, y int) {
+	u.HasGoto = true
+	u.GotoX = x
+	u.GotoY = y
+}
+
+// ClearGoto removes the goto destination
+func (u *Unit) ClearGoto() {
+	u.HasGoto = false
+	u.GotoX = 0
+	u.GotoY = 0
+}
+
+// HasReachedGoto checks if unit has arrived at goto destination
+func (u *Unit) HasReachedGoto() bool {
+	return u.HasGoto && u.X == u.GotoX && u.Y == u.GotoY
 }

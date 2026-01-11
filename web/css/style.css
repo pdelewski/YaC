@@ -809,3 +809,48 @@ body {
     font-size: 0.7rem;
     color: var(--text-secondary);
 }
+
+/* ============ GOTO DASHBOARD ============ */
+.goto-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.4rem;
+    background: var(--panel-dark);
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light)
+                  var(--panel-border-light) var(--panel-border-dark);
+}
+
+.goto-item:hover {
+    background: var(--panel-bg);
+}
+
+.goto-unit-info {
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.goto-dest {
+    color: var(--text-highlight);
+    margin: 0 1rem;
+    font-weight: bold;
+}
+
+.goto-actions {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.goto-actions .btn-unit {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.btn-cancel-goto {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.3rem;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+}

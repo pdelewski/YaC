@@ -57,6 +57,7 @@ class Renderer {
         this.renderMap();
         this.renderCities();
         this.renderUnits();
+        this.renderGotoMarkers();
         this.renderSelection();
         this.renderHoverTooltip();
         this.renderMinimap();
@@ -2817,6 +2818,63 @@ class Renderer {
         // Fill (gold color for groups)
         this.ctx.fillStyle = '#ffcc00';
         this.ctx.fillText(`Group (${units.length})`, textX, textY);
+    }
+
+    // Render goto destination markers and path lines
+    renderGotoMarkers() {
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.units) return;
+
+        const scaledTileSize = this.tileSize * this.camera.zoom;
+
+        for (const unit of myPlayer.units) {
+            if (!unit.has_goto) continue;
+
+            const unitScreen = this.worldToScreen(unit.x, unit.y);
+            const gotoScreen = this.worldToScreen(unit.goto_x, unit.goto_y);
+
+            // Draw dotted line from unit to destination
+            this.ctx.save();
+            this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(unitScreen.x + scaledTileSize / 2, unitScreen.y + scaledTileSize / 2);
+            this.ctx.lineTo(gotoScreen.x + scaledTileSize / 2, gotoScreen.y + scaledTileSize / 2);
+            this.ctx.stroke();
+            this.ctx.restore();
+
+            // Draw target marker at destination
+            const markerX = gotoScreen.x + scaledTileSize / 2;
+            const markerY = gotoScreen.y + scaledTileSize / 2;
+            const markerSize = scaledTileSize * 0.4;
+
+            // Outer ring
+            this.ctx.strokeStyle = '#ffd700';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.arc(markerX, markerY, markerSize, 0, Math.PI * 2);
+            this.ctx.stroke();
+
+            // Inner ring
+            this.ctx.strokeStyle = '#ffd700';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(markerX, markerY, markerSize * 0.5, 0, Math.PI * 2);
+            this.ctx.stroke();
+
+            // Crosshair lines
+            this.ctx.strokeStyle = '#ffd700';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            // Horizontal line
+            this.ctx.moveTo(markerX - markerSize - 5, markerY);
+            this.ctx.lineTo(markerX + markerSize + 5, markerY);
+            // Vertical line
+            this.ctx.moveTo(markerX, markerY - markerSize - 5);
+            this.ctx.lineTo(markerX, markerY + markerSize + 5);
+            this.ctx.stroke();
+        }
     }
 
     // Get unit letter for display (fallback)

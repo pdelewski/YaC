@@ -495,6 +495,41 @@ func (c *Client) handleAction(payload json.RawMessage) {
 			TargetY: data.TargetY,
 		}
 
+	case "set_goto":
+		var data struct {
+			UnitID string `json:"unit_id"`
+			GotoX  int    `json:"goto_x"`
+			GotoY  int    `json:"goto_y"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.SetGotoAction{
+			UnitID: data.UnitID,
+			GotoX:  data.GotoX,
+			GotoY:  data.GotoY,
+		}
+
+	case "clear_goto":
+		var data struct {
+			UnitID string `json:"unit_id"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.ClearGotoAction{
+			UnitID: data.UnitID,
+		}
+
+	case "set_group_goto":
+		var data struct {
+			GroupID string `json:"group_id"`
+			GotoX   int    `json:"goto_x"`
+			GotoY   int    `json:"goto_y"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.SetGroupGotoAction{
+			GroupID: data.GroupID,
+			GotoX:   data.GotoX,
+			GotoY:   data.GotoY,
+		}
+
 	default:
 		c.sendError("unknown_action", "Unknown action type: "+actionMsg.ActionType)
 		return

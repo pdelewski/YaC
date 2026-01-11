@@ -109,6 +109,9 @@ class InputHandler {
             case 'attack':
                 this.handleAttackClick(world.x, world.y);
                 break;
+            case 'goto':
+                this.handleGotoClick(world.x, world.y);
+                break;
             default:
                 this.handleNormalClick(world.x, world.y);
         }
@@ -196,6 +199,24 @@ class InputHandler {
         // Send attack action
         gameSocket.attackUnit(gameState.selectedUnit.id, x, y);
         gameState.setMode('normal');
+    }
+
+    handleGotoClick(x, y) {
+        // Validate destination is passable land tile
+        const tile = gameState.getTile(x, y);
+        if (!tile || tile.terrain === 'Ocean' || tile.terrain === 'Mountains') {
+            gameState.setMode('normal');
+            ui.updateModeButtons();
+            return;
+        }
+
+        if (gameState.selectedGroup) {
+            gameSocket.setGroupGoto(gameState.selectedGroup, x, y);
+        } else if (gameState.selectedUnit) {
+            gameSocket.setGoto(gameState.selectedUnit.id, x, y);
+        }
+        gameState.setMode('normal');
+        ui.updateModeButtons();
     }
 
     // Try to move or attack in a direction (like original Civ)
@@ -429,6 +450,15 @@ class InputHandler {
                     } else if (gameState.selectedUnit && gameState.selectedUnit.group_id) {
                         gameSocket.ungroupUnits(gameState.selectedUnit.group_id);
                     }
+                }
+                break;
+
+            // Goto mode
+            case 'o':
+            case 'O':
+                if ((gameState.selectedUnit || gameState.selectedGroup) && gameState.isMyTurn()) {
+                    gameState.setMode('goto');
+                    ui.updateModeButtons();
                 }
                 break;
 

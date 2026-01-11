@@ -114,6 +114,18 @@ class UI {
             }
         });
 
+        // Goto button
+        document.getElementById('btn-goto').addEventListener('click', () => {
+            if ((gameState.selectedUnit || gameState.selectedGroup) && gameState.isMyTurn()) {
+                if (gameState.mode === 'goto') {
+                    gameState.setMode('normal');
+                } else {
+                    gameState.setMode('goto');
+                }
+                this.updateModeButtons();
+            }
+        });
+
         // City modal close
         this.cityModal.querySelector('.close-btn').addEventListener('click', () => {
             this.hideCityModal();
@@ -168,8 +180,16 @@ class UI {
             this.showResourcesGallery();
         });
 
+        document.getElementById('menu-view-goto').addEventListener('click', () => {
+            this.showGotoDashboard();
+        });
+
         document.getElementById('units-modal-close').addEventListener('click', () => {
             document.getElementById('units-modal').classList.add('hidden');
+        });
+
+        document.getElementById('goto-modal-close').addEventListener('click', () => {
+            document.getElementById('goto-modal').classList.add('hidden');
         });
 
         document.getElementById('resources-modal-close').addEventListener('click', () => {
@@ -348,6 +368,69 @@ class UI {
         modal.classList.remove('hidden');
     }
 
+    // Show goto dashboard modal
+    showGotoDashboard() {
+        const modal = document.getElementById('goto-modal');
+        const list = document.getElementById('goto-list');
+
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.units) {
+            list.innerHTML = '<p class="no-selection">No units available</p>';
+            modal.classList.remove('hidden');
+            return;
+        }
+
+        const gotoUnits = myPlayer.units.filter(u => u.has_goto);
+
+        if (gotoUnits.length === 0) {
+            list.innerHTML = '<p class="no-selection">No active goto orders</p>';
+        } else {
+            list.innerHTML = gotoUnits.map(u => `
+                <div class="goto-item" data-unit-id="${u.id}">
+                    <div class="goto-unit-info">
+                        <strong>${u.type}</strong> at (${u.x}, ${u.y})
+                    </div>
+                    <div class="goto-dest">
+                        &rarr; (${u.goto_x}, ${u.goto_y})
+                    </div>
+                    <div class="goto-actions">
+                        <button class="btn-goto-center btn-unit">Center</button>
+                        <button class="btn-goto-cancel btn-unit">Cancel</button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add event listeners for center buttons
+            list.querySelectorAll('.btn-goto-center').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const unitId = e.target.closest('.goto-item').dataset.unitId;
+                    const unit = myPlayer.units.find(u => u.id === unitId);
+                    if (unit) {
+                        renderer.centerOn(unit.x, unit.y);
+                        gameState.selectUnit(unit);
+                        this.updateSelectionPanel();
+                    }
+                });
+            });
+
+            // Add event listeners for cancel buttons
+            list.querySelectorAll('.btn-goto-cancel').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const unitId = e.target.closest('.goto-item').dataset.unitId;
+                    gameSocket.clearGoto(unitId);
+                    // Remove the item from the list
+                    e.target.closest('.goto-item').remove();
+                    // Check if list is now empty
+                    if (list.querySelectorAll('.goto-item').length === 0) {
+                        list.innerHTML = '<p class="no-selection">No active goto orders</p>';
+                    }
+                });
+            });
+        }
+
+        modal.classList.remove('hidden');
+    }
+
     // Try to end turn with confirmation if there are active units
     tryEndTurn() {
         if (!gameState.isMyTurn()) return;
@@ -488,6 +571,12 @@ class UI {
             const owner = gameState.getPlayer(unit.owner_id);
             const isMine = unit.owner_id === gameState.myPlayerId;
 
+            let gotoHtml = '';
+            if (unit.has_goto) {
+                gotoHtml = `<p><span class="stat-label">Goto:</span> (${unit.goto_x}, ${unit.goto_y})
+                    <button class="btn-cancel-goto btn-unit" data-unit-id="${unit.id}">Cancel</button></p>`;
+            }
+
             this.selectionInfo.innerHTML = `
                 <p><strong>${unit.type}</strong></p>
                 <p><span class="stat-label">Owner:</span> ${owner ? owner.name : 'Unknown'}</p>
@@ -496,7 +585,17 @@ class UI {
                 <p><span class="stat-label">Health:</span> ${unit.health}%</p>
                 ${unit.is_veteran ? '<p>Veteran</p>' : ''}
                 ${unit.is_fortified ? '<p>Fortified</p>' : ''}
+                ${gotoHtml}
             `;
+
+            // Add event listener for cancel goto button
+            const cancelBtn = this.selectionInfo.querySelector('.btn-cancel-goto');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', (e) => {
+                    const unitId = e.target.dataset.unitId;
+                    gameSocket.clearGoto(unitId);
+                });
+            }
 
             // Show unit actions if it's my unit and my turn
             if (isMine && gameState.isMyTurn()) {
@@ -539,6 +638,7 @@ class UI {
         const moveBtn = document.getElementById('btn-move');
         const attackBtn = document.getElementById('btn-attack');
         const fortifyBtn = document.getElementById('btn-fortify');
+        const gotoBtn = document.getElementById('btn-goto');
         const foundCityBtn = document.getElementById('btn-found-city');
         const buildRoadBtn = document.getElementById('btn-build-road');
         const skipBtn = document.getElementById('btn-skip');
@@ -547,6 +647,7 @@ class UI {
 
         moveBtn.classList.toggle('active', gameState.mode === 'move');
         attackBtn.classList.toggle('active', gameState.mode === 'attack');
+        gotoBtn.classList.toggle('active', gameState.mode === 'goto');
 
         // Disable buttons if unit has no movement left
         const unit = gameState.selectedUnit;
@@ -556,6 +657,7 @@ class UI {
         moveBtn.disabled = !canAct;
         attackBtn.disabled = !canAct;
         fortifyBtn.disabled = !canAct || unit.can_found_city; // Settlers can't fortify
+        gotoBtn.disabled = !unit; // Goto can always be set if unit is selected
         skipBtn.disabled = !hasMovement;
 
         if (unit && unit.can_found_city) {
@@ -592,6 +694,7 @@ class UI {
         const moveBtn = document.getElementById('btn-move');
         const attackBtn = document.getElementById('btn-attack');
         const fortifyBtn = document.getElementById('btn-fortify');
+        const gotoBtn = document.getElementById('btn-goto');
         const foundCityBtn = document.getElementById('btn-found-city');
         const buildRoadBtn = document.getElementById('btn-build-road');
         const skipBtn = document.getElementById('btn-skip');
@@ -602,10 +705,12 @@ class UI {
 
         moveBtn.classList.toggle('active', gameState.mode === 'move');
         attackBtn.classList.toggle('active', gameState.mode === 'attack');
+        gotoBtn.classList.toggle('active', gameState.mode === 'goto');
 
         moveBtn.disabled = !canMove;
         attackBtn.disabled = !canMove;
         fortifyBtn.disabled = true; // Groups cannot fortify
+        gotoBtn.disabled = false; // Goto can always be set for groups
         skipBtn.disabled = !canMove;
 
         // Hide city-specific buttons for groups

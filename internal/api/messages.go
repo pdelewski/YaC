@@ -133,6 +133,9 @@ type UnitDTO struct {
 	Defense      int    `json:"defense"`
 	CanFoundCity bool   `json:"can_found_city"`
 	GroupID      string `json:"group_id,omitempty"`
+	HasGoto      bool   `json:"has_goto"`
+	GotoX        int    `json:"goto_x,omitempty"`
+	GotoY        int    `json:"goto_y,omitempty"`
 }
 
 // CityDTO represents a city
@@ -284,6 +287,9 @@ func UnitToDTO(u *game.Unit) UnitDTO {
 		Defense:      template.Defense,
 		CanFoundCity: template.CanFoundCity,
 		GroupID:      u.GroupID,
+		HasGoto:      u.HasGoto,
+		GotoX:        u.GotoX,
+		GotoY:        u.GotoY,
 	}
 }
 
@@ -521,6 +527,10 @@ func DTOToUnit(dto *UnitDTO) *game.Unit {
 		Health:       dto.Health,
 		IsVeteran:    dto.IsVeteran,
 		IsFortified:  dto.IsFortified,
+		GroupID:      dto.GroupID,
+		HasGoto:      dto.HasGoto,
+		GotoX:        dto.GotoX,
+		GotoY:        dto.GotoY,
 	}
 }
 
