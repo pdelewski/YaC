@@ -91,6 +91,29 @@ class UI {
             }
         });
 
+        // Group button
+        document.getElementById('btn-group').addEventListener('click', () => {
+            if (gameState.selectedUnit && gameState.isMyTurn()) {
+                const myUnits = gameState.getMyUnitsAt(gameState.selectedUnit.x, gameState.selectedUnit.y);
+                const ungroupedUnits = myUnits.filter(u => !u.group_id);
+                if (ungroupedUnits.length >= 2) {
+                    gameSocket.groupUnits(ungroupedUnits.map(u => u.id));
+                }
+            }
+        });
+
+        // Ungroup button
+        document.getElementById('btn-ungroup').addEventListener('click', () => {
+            if (gameState.isMyTurn()) {
+                if (gameState.selectedGroup) {
+                    gameSocket.ungroupUnits(gameState.selectedGroup);
+                    gameState.selectedGroup = null;
+                } else if (gameState.selectedUnit && gameState.selectedUnit.group_id) {
+                    gameSocket.ungroupUnits(gameState.selectedUnit.group_id);
+                }
+            }
+        });
+
         // City modal close
         this.cityModal.querySelector('.close-btn').addEventListener('click', () => {
             this.hideCityModal();
@@ -424,6 +447,42 @@ class UI {
     }
 
     updateSelectionPanel() {
+        // Group selection
+        if (gameState.selectedGroup) {
+            const units = gameState.getGroupUnits(gameState.selectedGroup);
+            if (units.length > 0) {
+                const owner = gameState.getPlayer(units[0].owner_id);
+                const isMine = units[0].owner_id === gameState.myPlayerId;
+                const minMovement = gameState.getGroupMinMovement(gameState.selectedGroup);
+                const totalAttack = units.reduce((sum, u) => sum + u.attack, 0);
+                const totalDefense = units.reduce((sum, u) => sum + u.defense, 0);
+
+                // Build unit list HTML
+                const unitListHtml = units.map(u =>
+                    `<li>${u.type} (A:${u.attack} D:${u.defense} M:${u.movement_left}${u.is_veteran ? ' ★' : ''})</li>`
+                ).join('');
+
+                this.selectionInfo.innerHTML = `
+                    <p><strong>Unit Group (${units.length} units)</strong></p>
+                    <p><span class="stat-label">Owner:</span> ${owner ? owner.name : 'Unknown'}</p>
+                    <p><span class="stat-label">Total Attack:</span> ${totalAttack} | <span class="stat-label">Defense:</span> ${totalDefense}</p>
+                    <p><span class="stat-label">Movement:</span> ${minMovement} (slowest)</p>
+                    <p><strong>Units in group:</strong></p>
+                    <ul class="unit-list">${unitListHtml}</ul>
+                `;
+
+                // Show group actions if it's my group and my turn
+                if (isMine && gameState.isMyTurn()) {
+                    this.unitActions.classList.remove('hidden');
+                    this.updateGroupActionButtons();
+                } else {
+                    this.unitActions.classList.add('hidden');
+                }
+                return;
+            }
+        }
+
+        // Single unit selection
         if (gameState.selectedUnit) {
             const unit = gameState.selectedUnit;
             const owner = gameState.getPlayer(unit.owner_id);
@@ -483,6 +542,8 @@ class UI {
         const foundCityBtn = document.getElementById('btn-found-city');
         const buildRoadBtn = document.getElementById('btn-build-road');
         const skipBtn = document.getElementById('btn-skip');
+        const groupBtn = document.getElementById('btn-group');
+        const ungroupBtn = document.getElementById('btn-ungroup');
 
         moveBtn.classList.toggle('active', gameState.mode === 'move');
         attackBtn.classList.toggle('active', gameState.mode === 'attack');
@@ -501,6 +562,60 @@ class UI {
             foundCityBtn.disabled = !canAct || !gameState.canFoundCity();
             buildRoadBtn.disabled = !canAct;
         }
+
+        // Handle Group/Ungroup buttons
+        if (unit) {
+            // Check if there are other ungrouped units at the same tile
+            const myUnits = gameState.getMyUnitsAt(unit.x, unit.y);
+            const ungroupedUnits = myUnits.filter(u => !u.group_id);
+            const canGroup = ungroupedUnits.length >= 2;
+
+            // If unit is already in a group, show Ungroup
+            if (unit.group_id) {
+                groupBtn.classList.add('hidden');
+                ungroupBtn.classList.remove('hidden');
+                ungroupBtn.disabled = false;
+            } else {
+                // Show Group if we can group, hide Ungroup
+                groupBtn.classList.remove('hidden');
+                groupBtn.disabled = !canGroup;
+                ungroupBtn.classList.add('hidden');
+            }
+        } else {
+            groupBtn.classList.add('hidden');
+            ungroupBtn.classList.add('hidden');
+        }
+    }
+
+    // Update action buttons for group selection
+    updateGroupActionButtons() {
+        const moveBtn = document.getElementById('btn-move');
+        const attackBtn = document.getElementById('btn-attack');
+        const fortifyBtn = document.getElementById('btn-fortify');
+        const foundCityBtn = document.getElementById('btn-found-city');
+        const buildRoadBtn = document.getElementById('btn-build-road');
+        const skipBtn = document.getElementById('btn-skip');
+        const groupBtn = document.getElementById('btn-group');
+        const ungroupBtn = document.getElementById('btn-ungroup');
+
+        const canMove = gameState.canGroupMove(gameState.selectedGroup);
+
+        moveBtn.classList.toggle('active', gameState.mode === 'move');
+        attackBtn.classList.toggle('active', gameState.mode === 'attack');
+
+        moveBtn.disabled = !canMove;
+        attackBtn.disabled = !canMove;
+        fortifyBtn.disabled = true; // Groups cannot fortify
+        skipBtn.disabled = !canMove;
+
+        // Hide city-specific buttons for groups
+        foundCityBtn.classList.add('hidden');
+        buildRoadBtn.classList.add('hidden');
+
+        // Show Ungroup, hide Group for groups
+        groupBtn.classList.add('hidden');
+        ungroupBtn.classList.remove('hidden');
+        ungroupBtn.disabled = false;
     }
 
     showCityModal(city) {

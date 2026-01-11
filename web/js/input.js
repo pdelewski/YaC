@@ -118,7 +118,16 @@ class InputHandler {
         // Check for my units at this location
         const myUnits = gameState.getMyUnitsAt(x, y);
         if (myUnits.length > 0) {
-            // Select the first unit
+            // Check if there's a group at this location
+            const groupedUnits = myUnits.filter(u => u.group_id);
+            if (groupedUnits.length > 0) {
+                // Select the group
+                gameState.selectGroup(groupedUnits[0].group_id);
+                ui.updateSelectionPanel();
+                return;
+            }
+
+            // Otherwise select first ungrouped unit
             gameState.selectUnit(myUnits[0]);
             ui.updateSelectionPanel();
             return;
@@ -191,7 +200,47 @@ class InputHandler {
 
     // Try to move or attack in a direction (like original Civ)
     tryMoveOrAttack(dx, dy) {
-        if (!gameState.selectedUnit || !gameState.isMyTurn()) return false;
+        if (!gameState.isMyTurn()) return false;
+
+        // Handle group movement/attack
+        if (gameState.selectedGroup) {
+            if (!gameState.canGroupMove(gameState.selectedGroup)) return false;
+
+            const units = gameState.getGroupUnits(gameState.selectedGroup);
+            if (units.length === 0) return false;
+
+            const newX = units[0].x + dx;
+            const newY = units[0].y + dy;
+
+            // Check bounds
+            if (!gameState.map || newX < 0 || newX >= gameState.map.width ||
+                newY < 0 || newY >= gameState.map.height) {
+                return false;
+            }
+
+            // Check for enemies - attack if present
+            const enemies = gameState.getEnemyUnitsAt(newX, newY);
+            const enemyCity = gameState.getCityAt(newX, newY);
+            const hasEnemy = enemies.length > 0 || (enemyCity && enemyCity.owner_id !== gameState.myPlayerId);
+
+            if (hasEnemy) {
+                gameSocket.attackGroup(gameState.selectedGroup, newX, newY);
+                return true;
+            }
+
+            // Check terrain for movement
+            const tile = gameState.getTile(newX, newY);
+            if (!tile || tile.terrain === 'Ocean' || tile.terrain === 'Mountains') {
+                return false;
+            }
+
+            // Move the group
+            gameSocket.moveGroup(gameState.selectedGroup, newX, newY);
+            return true;
+        }
+
+        // Handle single unit movement/attack
+        if (!gameState.selectedUnit) return false;
         if (!gameState.canUnitMove(gameState.selectedUnit)) return false;
 
         const unit = gameState.selectedUnit;
@@ -267,10 +316,19 @@ class InputHandler {
             e.preventDefault();
             const dir = directionKeys[e.code];
 
-            // If unit selected and it's my turn, try to move/attack
-            if (gameState.selectedUnit && gameState.isMyTurn() && gameState.canUnitMove(gameState.selectedUnit)) {
-                if (this.tryMoveOrAttack(dir.dx, dir.dy)) {
-                    return;
+            // If unit or group selected and it's my turn, try to move/attack
+            if (gameState.isMyTurn()) {
+                // Check for group movement first
+                if (gameState.selectedGroup && gameState.canGroupMove(gameState.selectedGroup)) {
+                    if (this.tryMoveOrAttack(dir.dx, dir.dy)) {
+                        return;
+                    }
+                }
+                // Then check for unit movement
+                else if (gameState.selectedUnit && gameState.canUnitMove(gameState.selectedUnit)) {
+                    if (this.tryMoveOrAttack(dir.dx, dir.dy)) {
+                        return;
+                    }
                 }
             }
 
@@ -346,6 +404,32 @@ class InputHandler {
             case 'd':
             case 'D':
                 renderer.pan(Config.CAMERA.PAN_SPEED * 5, 0);
+                break;
+
+            // Group units
+            case 'g':
+            case 'G':
+                if (gameState.selectedUnit && gameState.isMyTurn()) {
+                    // Get all my ungrouped units at the same position
+                    const myUnits = gameState.getMyUnitsAt(gameState.selectedUnit.x, gameState.selectedUnit.y);
+                    const ungroupedUnits = myUnits.filter(u => !u.group_id);
+                    if (ungroupedUnits.length >= 2) {
+                        gameSocket.groupUnits(ungroupedUnits.map(u => u.id));
+                    }
+                }
+                break;
+
+            // Ungroup units
+            case 'u':
+            case 'U':
+                if (gameState.isMyTurn()) {
+                    if (gameState.selectedGroup) {
+                        gameSocket.ungroupUnits(gameState.selectedGroup);
+                        gameState.selectedGroup = null;
+                    } else if (gameState.selectedUnit && gameState.selectedUnit.group_id) {
+                        gameSocket.ungroupUnits(gameState.selectedUnit.group_id);
+                    }
+                }
                 break;
 
             // Center on selected

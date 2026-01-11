@@ -132,6 +132,7 @@ type UnitDTO struct {
 	Attack       int    `json:"attack"`
 	Defense      int    `json:"defense"`
 	CanFoundCity bool   `json:"can_found_city"`
+	GroupID      string `json:"group_id,omitempty"`
 }
 
 // CityDTO represents a city
@@ -282,6 +283,7 @@ func UnitToDTO(u *game.Unit) UnitDTO {
 		Attack:       template.Attack,
 		Defense:      template.Defense,
 		CanFoundCity: template.CanFoundCity,
+		GroupID:      u.GroupID,
 	}
 }
 

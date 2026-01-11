@@ -2601,91 +2601,208 @@ class Renderer {
             return;
         }
 
+        // Track which groups we've already drawn
+        const drawnGroups = new Set();
+
         for (const player of gameState.players) {
             if (!player.units || player.units.length === 0) {
                 continue;
             }
             for (const unit of player.units) {
-                const screen = this.worldToScreen(unit.x, unit.y);
+                // If unit is in a group, handle group rendering
+                if (unit.group_id) {
+                    // Skip if we've already drawn this group
+                    if (drawnGroups.has(unit.group_id)) {
+                        continue;
+                    }
+                    drawnGroups.add(unit.group_id);
 
-                // Draw unit background (player color border)
-                this.ctx.fillStyle = player.color;
-                this.ctx.fillRect(
-                    screen.x + scaledTileSize * 0.05,
-                    screen.y + scaledTileSize * 0.05,
-                    scaledTileSize * 0.9,
-                    scaledTileSize * 0.9
-                );
-
-                // Draw unit sprite background
-                this.ctx.fillStyle = '#1a1a2a';
-                this.ctx.fillRect(
-                    screen.x + scaledTileSize * 0.1,
-                    screen.y + scaledTileSize * 0.1,
-                    scaledTileSize * 0.8,
-                    scaledTileSize * 0.8
-                );
-
-                // Draw the unit sprite
-                this.drawUnitSprite(
-                    unit.type,
-                    screen.x + scaledTileSize * 0.1,
-                    screen.y + scaledTileSize * 0.1,
-                    scaledTileSize * 0.8,
-                    player.color
-                );
-
-                // Veteran star (gold) in corner
-                if (unit.is_veteran) {
-                    this.ctx.fillStyle = '#ffd700';
-                    this.ctx.font = `bold ${Math.max(10, scaledTileSize * 0.3)}px sans-serif`;
-                    this.ctx.textAlign = 'center';
-                    this.ctx.textBaseline = 'middle';
-                    this.ctx.fillText('\u2605', screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.15);
+                    // Get all units in the group
+                    const groupUnits = gameState.getGroupUnits(unit.group_id);
+                    this.renderGroupedUnits(groupUnits, player, scaledTileSize);
+                    continue;
                 }
 
-                // Fortified indicator (blue glow border)
-                if (unit.is_fortified) {
-                    this.ctx.strokeStyle = '#4a9eff';
-                    this.ctx.lineWidth = 3;
-                    this.ctx.strokeRect(
-                        screen.x + scaledTileSize * 0.02,
-                        screen.y + scaledTileSize * 0.02,
-                        scaledTileSize * 0.96,
-                        scaledTileSize * 0.96
-                    );
-                }
-
-                // Movement indicator (dim overlay if no movement left)
-                if (unit.movement_left === 0) {
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                    this.ctx.fillRect(
-                        screen.x + scaledTileSize * 0.05,
-                        screen.y + scaledTileSize * 0.05,
-                        scaledTileSize * 0.9,
-                        scaledTileSize * 0.9
-                    );
-                }
-
-                // "Active" label for units that can still act (my units with movement left)
-                if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified) {
-                    const fontSize = Math.max(8, scaledTileSize * 0.18);
-                    this.ctx.font = `bold ${fontSize}px sans-serif`;
-                    this.ctx.textAlign = 'center';
-                    this.ctx.textBaseline = 'top';
-
-                    // Draw text with outline for visibility
-                    const textX = screen.x + scaledTileSize / 2;
-                    const textY = screen.y + 2;
-
-                    this.ctx.strokeStyle = '#000';
-                    this.ctx.lineWidth = 2;
-                    this.ctx.strokeText('Active', textX, textY);
-                    this.ctx.fillStyle = '#00ff00';
-                    this.ctx.fillText('Active', textX, textY);
-                }
+                // Regular unit rendering
+                this.renderSingleUnit(unit, player, scaledTileSize);
             }
         }
+    }
+
+    // Render a single unit
+    renderSingleUnit(unit, player, scaledTileSize) {
+        const screen = this.worldToScreen(unit.x, unit.y);
+
+        // Draw unit background (player color border)
+        this.ctx.fillStyle = player.color;
+        this.ctx.fillRect(
+            screen.x + scaledTileSize * 0.05,
+            screen.y + scaledTileSize * 0.05,
+            scaledTileSize * 0.9,
+            scaledTileSize * 0.9
+        );
+
+        // Draw unit sprite background
+        this.ctx.fillStyle = '#1a1a2a';
+        this.ctx.fillRect(
+            screen.x + scaledTileSize * 0.1,
+            screen.y + scaledTileSize * 0.1,
+            scaledTileSize * 0.8,
+            scaledTileSize * 0.8
+        );
+
+        // Draw the unit sprite
+        this.drawUnitSprite(
+            unit.type,
+            screen.x + scaledTileSize * 0.1,
+            screen.y + scaledTileSize * 0.1,
+            scaledTileSize * 0.8,
+            player.color
+        );
+
+        // Veteran star (gold) in corner
+        if (unit.is_veteran) {
+            this.ctx.fillStyle = '#ffd700';
+            this.ctx.font = `bold ${Math.max(10, scaledTileSize * 0.3)}px sans-serif`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('\u2605', screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.15);
+        }
+
+        // Fortified indicator (blue glow border)
+        if (unit.is_fortified) {
+            this.ctx.strokeStyle = '#4a9eff';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(
+                screen.x + scaledTileSize * 0.02,
+                screen.y + scaledTileSize * 0.02,
+                scaledTileSize * 0.96,
+                scaledTileSize * 0.96
+            );
+        }
+
+        // Movement indicator (dim overlay if no movement left)
+        if (unit.movement_left === 0) {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(
+                screen.x + scaledTileSize * 0.05,
+                screen.y + scaledTileSize * 0.05,
+                scaledTileSize * 0.9,
+                scaledTileSize * 0.9
+            );
+        }
+
+        // "Active" label for units that can still act (my units with movement left)
+        if (player.id === gameState.myPlayerId && unit.movement_left > 0 && !unit.is_fortified) {
+            const fontSize = Math.max(8, scaledTileSize * 0.18);
+            this.ctx.font = `bold ${fontSize}px sans-serif`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'top';
+
+            // Draw text with outline for visibility
+            const textX = screen.x + scaledTileSize / 2;
+            const textY = screen.y + 2;
+
+            this.ctx.strokeStyle = '#000';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeText('Active', textX, textY);
+            this.ctx.fillStyle = '#00ff00';
+            this.ctx.fillText('Active', textX, textY);
+        }
+    }
+
+    // Render grouped units with stacked effect
+    renderGroupedUnits(units, player, scaledTileSize) {
+        if (units.length === 0) return;
+
+        const firstUnit = units[0];
+        const screen = this.worldToScreen(firstUnit.x, firstUnit.y);
+        const offsetStep = scaledTileSize * 0.04;
+
+        // Draw stacked cards behind (up to 2 extra)
+        const stackCount = Math.min(units.length - 1, 2);
+        for (let i = stackCount; i >= 1; i--) {
+            const offsetX = i * offsetStep;
+            const offsetY = i * offsetStep;
+
+            // Shadow card
+            this.ctx.fillStyle = 'rgba(100, 100, 100, 0.7)';
+            this.ctx.fillRect(
+                screen.x + scaledTileSize * 0.05 + offsetX,
+                screen.y + scaledTileSize * 0.05 + offsetY,
+                scaledTileSize * 0.9,
+                scaledTileSize * 0.9
+            );
+        }
+
+        // Draw main unit background (player color border)
+        this.ctx.fillStyle = player.color;
+        this.ctx.fillRect(
+            screen.x + scaledTileSize * 0.05,
+            screen.y + scaledTileSize * 0.05,
+            scaledTileSize * 0.9,
+            scaledTileSize * 0.9
+        );
+
+        // Draw unit sprite background
+        this.ctx.fillStyle = '#1a1a2a';
+        this.ctx.fillRect(
+            screen.x + scaledTileSize * 0.1,
+            screen.y + scaledTileSize * 0.1,
+            scaledTileSize * 0.8,
+            scaledTileSize * 0.8
+        );
+
+        // Draw the first unit's sprite
+        this.drawUnitSprite(
+            firstUnit.type,
+            screen.x + scaledTileSize * 0.1,
+            screen.y + scaledTileSize * 0.1,
+            scaledTileSize * 0.8,
+            player.color
+        );
+
+        // Check if any unit in group is veteran
+        const hasVeteran = units.some(u => u.is_veteran);
+        if (hasVeteran) {
+            this.ctx.fillStyle = '#ffd700';
+            this.ctx.font = `bold ${Math.max(10, scaledTileSize * 0.3)}px sans-serif`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('\u2605', screen.x + scaledTileSize * 0.85, screen.y + scaledTileSize * 0.15);
+        }
+
+        // Get minimum movement for the group
+        const minMovement = gameState.getGroupMinMovement(firstUnit.group_id);
+
+        // Movement indicator (dim overlay if no movement left)
+        if (minMovement === 0) {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(
+                screen.x + scaledTileSize * 0.05,
+                screen.y + scaledTileSize * 0.05,
+                scaledTileSize * 0.9,
+                scaledTileSize * 0.9
+            );
+        }
+
+        // Draw "Group (N)" label at the bottom
+        const fontSize = Math.max(8, scaledTileSize * 0.16);
+        this.ctx.font = `bold ${fontSize}px sans-serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'bottom';
+
+        const textX = screen.x + scaledTileSize / 2;
+        const textY = screen.y + scaledTileSize - 2;
+
+        // Outline
+        this.ctx.strokeStyle = '#000';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeText(`Group (${units.length})`, textX, textY);
+
+        // Fill (gold color for groups)
+        this.ctx.fillStyle = '#ffcc00';
+        this.ctx.fillText(`Group (${units.length})`, textX, textY);
     }
 
     // Get unit letter for display (fallback)
@@ -3118,8 +3235,37 @@ class Renderer {
     renderSelection() {
         const scaledTileSize = this.tileSize * this.camera.zoom;
 
-        // Selected unit
-        if (gameState.selectedUnit) {
+        // Selected group (golden blinking frame)
+        if (gameState.selectedGroup) {
+            const units = gameState.getGroupUnits(gameState.selectedGroup);
+            if (units.length > 0) {
+                const screen = this.worldToScreen(units[0].x, units[0].y);
+
+                // Blinking golden highlight for groups
+                if (Math.floor(Date.now() / 400) % 2 === 0) {
+                    this.ctx.strokeStyle = '#ffcc00'; // Gold color
+                    this.ctx.lineWidth = 5;
+                    this.ctx.strokeRect(
+                        screen.x - 2,
+                        screen.y - 2,
+                        scaledTileSize + 4,
+                        scaledTileSize + 4
+                    );
+                }
+
+                // Show movement range when in move mode
+                if (gameState.mode === 'move' && gameState.canGroupMove(gameState.selectedGroup)) {
+                    this.renderMovementRange(units[0]);
+                }
+
+                // Show attack range when in attack mode
+                if (gameState.mode === 'attack') {
+                    this.renderAttackRange(units[0]);
+                }
+            }
+        }
+        // Selected unit (black blinking frame)
+        else if (gameState.selectedUnit) {
             const unit = gameState.selectedUnit;
             const screen = this.worldToScreen(unit.x, unit.y);
 

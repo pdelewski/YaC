@@ -181,6 +181,35 @@ class GameWebSocket {
         return this.sendAction('end_turn', {});
     }
 
+    // Group actions
+    groupUnits(unitIds) {
+        return this.sendAction('group_units', {
+            unit_ids: unitIds
+        });
+    }
+
+    ungroupUnits(groupId) {
+        return this.sendAction('ungroup_units', {
+            group_id: groupId
+        });
+    }
+
+    moveGroup(groupId, toX, toY) {
+        return this.sendAction('move_group', {
+            group_id: groupId,
+            to_x: toX,
+            to_y: toY
+        });
+    }
+
+    attackGroup(groupId, targetX, targetY) {
+        return this.sendAction('attack_group', {
+            group_id: groupId,
+            target_x: targetX,
+            target_y: targetY
+        });
+    }
+
     // Callback setters
     onGameState(callback) {
         this.callbacks.onGameState = callback;

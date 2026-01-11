@@ -445,3 +445,369 @@ func (a *EndTurnAction) Validate(g *GameState, playerID string) error {
 func (a *EndTurnAction) Execute(g *GameState) error {
 	return g.EndTurn()
 }
+
+// GroupUnitsAction creates a new group from units on the same tile
+type GroupUnitsAction struct {
+	UnitIDs []string `json:"unit_ids"`
+}
+
+// Validate checks if the units can be grouped
+func (a *GroupUnitsAction) Validate(g *GameState, playerID string) error {
+	if len(a.UnitIDs) < 2 {
+		return errors.New("need at least 2 units to form a group")
+	}
+
+	var refX, refY int
+	for i, unitID := range a.UnitIDs {
+		unit := g.GetUnit(unitID)
+		if unit == nil {
+			return ErrUnitNotFound
+		}
+		if unit.OwnerID != playerID {
+			return ErrNotYourUnit
+		}
+		if unit.GroupID != "" {
+			return errors.New("unit already in a group")
+		}
+
+		if i == 0 {
+			refX, refY = unit.X, unit.Y
+		} else if unit.X != refX || unit.Y != refY {
+			return errors.New("all units must be on the same tile")
+		}
+	}
+	return nil
+}
+
+// Execute creates the group
+func (a *GroupUnitsAction) Execute(g *GameState) error {
+	if len(a.UnitIDs) == 0 {
+		return errors.New("no units specified")
+	}
+
+	// Generate group ID
+	firstUnit := g.GetUnit(a.UnitIDs[0])
+	if firstUnit == nil {
+		return ErrUnitNotFound
+	}
+
+	player := g.GetPlayer(firstUnit.OwnerID)
+	if player == nil {
+		return ErrPlayerNotFound
+	}
+
+	// Create a simple group ID
+	groupID := "group_" + firstUnit.ID[:8]
+
+	// Assign group ID to all units
+	for _, unitID := range a.UnitIDs {
+		unit := g.GetUnit(unitID)
+		if unit != nil {
+			unit.GroupID = groupID
+		}
+	}
+
+	// Add group to player
+	group := &UnitGroup{
+		ID:      groupID,
+		UnitIDs: a.UnitIDs,
+	}
+	player.AddGroup(group)
+
+	return nil
+}
+
+// UngroupUnitsAction dissolves a unit group
+type UngroupUnitsAction struct {
+	GroupID string `json:"group_id"`
+}
+
+// Validate checks if the group can be ungrouped
+func (a *UngroupUnitsAction) Validate(g *GameState, playerID string) error {
+	// Find any unit with this group ID to validate ownership
+	found := false
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID {
+				if unit.OwnerID != playerID {
+					return ErrNotYourUnit
+				}
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	if !found {
+		return errors.New("group not found")
+	}
+
+	return nil
+}
+
+// Execute dissolves the group
+func (a *UngroupUnitsAction) Execute(g *GameState) error {
+	var ownerID string
+
+	// Clear group ID from all units
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID {
+				ownerID = unit.OwnerID
+				unit.GroupID = ""
+			}
+		}
+	}
+
+	// Remove group from player
+	if ownerID != "" {
+		player := g.GetPlayer(ownerID)
+		if player != nil {
+			player.RemoveGroup(a.GroupID)
+		}
+	}
+
+	return nil
+}
+
+// MoveGroupAction moves all units in a group together
+type MoveGroupAction struct {
+	GroupID string `json:"group_id"`
+	ToX     int    `json:"to_x"`
+	ToY     int    `json:"to_y"`
+}
+
+// Validate checks if the group can move
+func (a *MoveGroupAction) Validate(g *GameState, playerID string) error {
+	// Find units in this group
+	var units []*Unit
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID {
+				units = append(units, unit)
+			}
+		}
+	}
+
+	if len(units) == 0 {
+		return errors.New("group not found")
+	}
+
+	// Check ownership and movement for all units
+	for _, unit := range units {
+		if unit.OwnerID != playerID {
+			return ErrNotYourUnit
+		}
+		if unit.IsFortified {
+			return errors.New("cannot move fortified unit in group")
+		}
+	}
+
+	// Check minimum movement
+	minMovement := 999
+	for _, unit := range units {
+		if unit.MovementLeft < minMovement {
+			minMovement = unit.MovementLeft
+		}
+	}
+	if minMovement <= 0 {
+		return ErrNoMovementLeft
+	}
+
+	// Validate move destination using first unit's position
+	if !g.IsValidMove(units[0], a.ToX, a.ToY) {
+		return ErrInvalidMove
+	}
+
+	return nil
+}
+
+// Execute moves all units in the group
+func (a *MoveGroupAction) Execute(g *GameState) error {
+	// Find units in this group
+	var units []*Unit
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID {
+				units = append(units, unit)
+			}
+		}
+	}
+
+	if len(units) == 0 {
+		return errors.New("group not found")
+	}
+
+	// Get movement cost from first unit's position
+	cost := g.GetMovementCost(units[0].X, units[0].Y, a.ToX, a.ToY)
+
+	// Move all units
+	for _, unit := range units {
+		unit.X = a.ToX
+		unit.Y = a.ToY
+		unit.MovementLeft -= cost
+		if unit.MovementLeft < 0 {
+			unit.MovementLeft = 0
+		}
+		unit.IsFortified = false
+	}
+
+	return nil
+}
+
+// AttackGroupAction attacks with all units in a group sequentially
+type AttackGroupAction struct {
+	GroupID string `json:"group_id"`
+	TargetX int    `json:"target_x"`
+	TargetY int    `json:"target_y"`
+}
+
+// Validate checks if the group can attack
+func (a *AttackGroupAction) Validate(g *GameState, playerID string) error {
+	// Find units in this group
+	var units []*Unit
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID {
+				units = append(units, unit)
+			}
+		}
+	}
+
+	if len(units) == 0 {
+		return errors.New("group not found")
+	}
+
+	// Check ownership and that at least one unit can attack
+	hasAttacker := false
+	for _, unit := range units {
+		if unit.OwnerID != playerID {
+			return ErrNotYourUnit
+		}
+		if unit.CanMove() {
+			hasAttacker = true
+		}
+	}
+
+	if !hasAttacker {
+		return ErrNoMovementLeft
+	}
+
+	// Check adjacency
+	refUnit := units[0]
+	dx := abs(a.TargetX - refUnit.X)
+	dy := abs(a.TargetY - refUnit.Y)
+	if dx > 1 || dy > 1 || (dx == 0 && dy == 0) {
+		return ErrInvalidTarget
+	}
+
+	// Check for enemies at target
+	enemies := g.GetEnemyUnitsAt(a.TargetX, a.TargetY, playerID)
+	if len(enemies) == 0 {
+		// Check for enemy city
+		city := g.GetCityAt(a.TargetX, a.TargetY)
+		if city == nil || city.OwnerID == playerID {
+			return ErrInvalidTarget
+		}
+	}
+
+	return nil
+}
+
+// Execute performs sequential attacks with all group units
+func (a *AttackGroupAction) Execute(g *GameState) error {
+	// Find units in this group that can attack
+	var attackers []*Unit
+	var groupOwnerID string
+	for _, player := range g.Players {
+		for _, unit := range player.Units {
+			if unit.GroupID == a.GroupID && unit.CanMove() {
+				attackers = append(attackers, unit)
+				groupOwnerID = unit.OwnerID
+			}
+		}
+	}
+
+	if len(attackers) == 0 {
+		return errors.New("no units can attack")
+	}
+
+	// Attack sequentially until no enemies remain or all attackers have attacked
+	for _, attacker := range attackers {
+		// Check if there are still enemies
+		enemies := g.GetEnemyUnitsAt(a.TargetX, a.TargetY, groupOwnerID)
+		city := g.GetCityAt(a.TargetX, a.TargetY)
+
+		if len(enemies) == 0 {
+			// No more enemy units - check if there's an enemy city to capture
+			if city != nil && city.OwnerID != groupOwnerID {
+				// Capture the city
+				g.TransferCity(city, groupOwnerID)
+				// Move all remaining group attackers to the city
+				for _, u := range attackers {
+					if u.IsAlive() && u.GroupID == a.GroupID {
+						u.X = a.TargetX
+						u.Y = a.TargetY
+						u.MovementLeft = 0
+					}
+				}
+			}
+			break
+		}
+
+		// Find best defender
+		tile := g.Map.GetTile(a.TargetX, a.TargetY)
+		hasWalls := city != nil && city.HasWalls()
+		defender := getBestDefender(enemies, tile, city != nil)
+
+		if defender == nil {
+			break
+		}
+
+		// Resolve combat
+		result := ResolveCombat(attacker, defender, tile, city != nil, defender.IsFortified, hasWalls)
+
+		// Apply results to attacker
+		if result.AttackerDestroyed {
+			g.RemoveUnit(attacker.ID)
+		} else {
+			attacker.Health = BaseHealthPoints - result.AttackerDamage
+			attacker.MovementLeft = 0
+		}
+
+		// Apply results to defender
+		if result.DefenderDestroyed {
+			g.RemoveUnit(defender.ID)
+
+			// If attacker won and is still alive, it can move to target
+			if result.AttackerWon && !result.AttackerDestroyed {
+				// Check if city is now undefended
+				remainingDefenders := g.GetEnemyUnitsAt(a.TargetX, a.TargetY, groupOwnerID)
+				if len(remainingDefenders) == 0 && city != nil {
+					// Capture the city
+					city.Population = city.Population / 2
+					if city.Population < 1 {
+						city.Population = 1
+					}
+					g.TransferCity(city, groupOwnerID)
+					// Move all surviving group units to captured location
+					for _, u := range attackers {
+						if u.IsAlive() && u.GroupID == a.GroupID {
+							u.X = a.TargetX
+							u.Y = a.TargetY
+							u.MovementLeft = 0
+						}
+					}
+					break
+				}
+			}
+		} else {
+			defender.Health = BaseHealthPoints - result.DefenderDamage
+		}
+	}
+
+	return nil
+}

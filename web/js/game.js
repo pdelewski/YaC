@@ -13,6 +13,7 @@ class GameState {
         // Selection state
         this.selectedUnit = null;
         this.selectedCity = null;
+        this.selectedGroup = null; // Currently selected group ID
 
         // Input mode
         this.mode = 'normal'; // 'normal', 'move', 'attack'
@@ -39,8 +40,25 @@ class GameState {
             const unit = this.getUnit(this.selectedUnit.id);
             if (!unit) {
                 this.selectedUnit = null;
+                this.selectedGroup = null;
             } else {
                 this.selectedUnit = unit;
+
+                // Auto-select group if selected unit was just grouped
+                if (!this.selectedGroup && unit.group_id) {
+                    this.selectedGroup = unit.group_id;
+                }
+
+                // Update group selection if applicable
+                if (this.selectedGroup) {
+                    const groupUnits = this.getGroupUnits(this.selectedGroup);
+                    if (groupUnits.length === 0) {
+                        this.selectedGroup = null;
+                    } else if (groupUnits.length === 1) {
+                        // Auto-ungroup if only 1 unit left
+                        this.selectedGroup = null;
+                    }
+                }
             }
         }
 
@@ -191,6 +209,7 @@ class GameState {
     selectUnit(unit) {
         this.selectedUnit = unit;
         this.selectedCity = null;
+        this.selectedGroup = null;
         this.mode = 'normal';
     }
 
@@ -198,6 +217,7 @@ class GameState {
     selectCity(city) {
         this.selectedCity = city;
         this.selectedUnit = null;
+        this.selectedGroup = null;
         this.mode = 'normal';
     }
 
@@ -205,7 +225,48 @@ class GameState {
     clearSelection() {
         this.selectedUnit = null;
         this.selectedCity = null;
+        this.selectedGroup = null;
         this.mode = 'normal';
+    }
+
+    // Select a group of units
+    selectGroup(groupId) {
+        const units = this.getGroupUnits(groupId);
+        if (units.length > 0) {
+            this.selectedGroup = groupId;
+            this.selectedUnit = units[0]; // Primary unit for display
+            this.selectedCity = null;
+            this.mode = 'normal';
+        }
+    }
+
+    // Get all units in a group
+    getGroupUnits(groupId) {
+        const units = [];
+        for (const player of this.players) {
+            for (const unit of player.units) {
+                if (unit.group_id === groupId) {
+                    units.push(unit);
+                }
+            }
+        }
+        return units;
+    }
+
+    // Get minimum movement for a group
+    getGroupMinMovement(groupId) {
+        const units = this.getGroupUnits(groupId);
+        if (units.length === 0) return 0;
+        return Math.min(...units.map(u => u.movement_left));
+    }
+
+    // Check if group can move
+    canGroupMove(groupId) {
+        const units = this.getGroupUnits(groupId);
+        if (units.length === 0) return false;
+        // All units must not be fortified and at least some movement left
+        return units.every(u => !u.is_fortified) &&
+               this.getGroupMinMovement(groupId) > 0;
     }
 
     // Set input mode

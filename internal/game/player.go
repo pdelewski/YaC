@@ -10,17 +10,24 @@ const (
 	PlayerAI
 )
 
+// UnitGroup represents a group of units that move together
+type UnitGroup struct {
+	ID      string   `json:"id"`
+	UnitIDs []string `json:"unit_ids"`
+}
+
 // Player represents a civilization in the game
 type Player struct {
-	ID      string     `json:"id"`
-	Name    string     `json:"name"`
-	Type    PlayerType `json:"type"`
-	Color   string     `json:"color"` // Hex color for UI
-	Gold    int        `json:"gold"`
-	Science int        `json:"science"`
-	Units   []*Unit    `json:"units"`
-	Cities  []*City    `json:"cities"`
-	IsAlive bool       `json:"is_alive"`
+	ID      string       `json:"id"`
+	Name    string       `json:"name"`
+	Type    PlayerType   `json:"type"`
+	Color   string       `json:"color"` // Hex color for UI
+	Gold    int          `json:"gold"`
+	Science int          `json:"science"`
+	Units   []*Unit      `json:"units"`
+	Cities  []*City      `json:"cities"`
+	Groups  []*UnitGroup `json:"groups,omitempty"` // Unit groups for stacked movement
+	IsAlive bool         `json:"is_alive"`
 }
 
 // PlayerColors defines available colors for players
@@ -59,6 +66,7 @@ func NewPlayer(name string, playerType PlayerType, colorIndex int) *Player {
 		Science: 0,
 		Units:   make([]*Unit, 0),
 		Cities:  make([]*City, 0),
+		Groups:  make([]*UnitGroup, 0),
 		IsAlive: true,
 	}
 }
@@ -203,4 +211,54 @@ func (p *Player) CheckAlive() {
 	}
 
 	p.IsAlive = false
+}
+
+// GetGroup returns a group by ID, or nil if not found
+func (p *Player) GetGroup(groupID string) *UnitGroup {
+	for _, g := range p.Groups {
+		if g.ID == groupID {
+			return g
+		}
+	}
+	return nil
+}
+
+// AddGroup adds a new unit group
+func (p *Player) AddGroup(group *UnitGroup) {
+	p.Groups = append(p.Groups, group)
+}
+
+// RemoveGroup removes a group by ID
+func (p *Player) RemoveGroup(groupID string) {
+	for i, g := range p.Groups {
+		if g.ID == groupID {
+			p.Groups = append(p.Groups[:i], p.Groups[i+1:]...)
+			return
+		}
+	}
+}
+
+// GetGroupUnits returns all units in a specific group
+func (p *Player) GetGroupUnits(groupID string) []*Unit {
+	units := make([]*Unit, 0)
+	for _, u := range p.Units {
+		if u.GroupID == groupID {
+			units = append(units, u)
+		}
+	}
+	return units
+}
+
+// GetGroupMinMovement returns the minimum movement left among all units in a group
+func (p *Player) GetGroupMinMovement(groupID string) int {
+	minMovement := 999
+	for _, u := range p.Units {
+		if u.GroupID == groupID && u.MovementLeft < minMovement {
+			minMovement = u.MovementLeft
+		}
+	}
+	if minMovement == 999 {
+		return 0
+	}
+	return minMovement
 }

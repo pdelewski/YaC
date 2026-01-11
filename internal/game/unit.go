@@ -135,6 +135,7 @@ type Unit struct {
 	Health       int      `json:"health"`
 	IsVeteran    bool     `json:"is_veteran"`
 	IsFortified  bool     `json:"is_fortified"`
+	GroupID      string   `json:"group_id,omitempty"` // Empty string means ungrouped
 }
 
 // NewUnit creates a new unit at the specified location

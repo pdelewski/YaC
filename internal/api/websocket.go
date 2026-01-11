@@ -451,6 +451,50 @@ func (c *Client) handleAction(payload json.RawMessage) {
 	case "end_turn":
 		action = &game.EndTurnAction{}
 
+	case "group_units":
+		var data struct {
+			UnitIDs []string `json:"unit_ids"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.GroupUnitsAction{
+			UnitIDs: data.UnitIDs,
+		}
+
+	case "ungroup_units":
+		var data struct {
+			GroupID string `json:"group_id"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.UngroupUnitsAction{
+			GroupID: data.GroupID,
+		}
+
+	case "move_group":
+		var data struct {
+			GroupID string `json:"group_id"`
+			ToX     int    `json:"to_x"`
+			ToY     int    `json:"to_y"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.MoveGroupAction{
+			GroupID: data.GroupID,
+			ToX:     data.ToX,
+			ToY:     data.ToY,
+		}
+
+	case "attack_group":
+		var data struct {
+			GroupID string `json:"group_id"`
+			TargetX int    `json:"target_x"`
+			TargetY int    `json:"target_y"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.AttackGroupAction{
+			GroupID: data.GroupID,
+			TargetX: data.TargetX,
+			TargetY: data.TargetY,
+		}
+
 	default:
 		c.sendError("unknown_action", "Unknown action type: "+actionMsg.ActionType)
 		return
