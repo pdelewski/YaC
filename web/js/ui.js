@@ -184,12 +184,20 @@ class UI {
             this.showGotoDashboard();
         });
 
+        document.getElementById('menu-view-cities').addEventListener('click', () => {
+            this.showCitiesDashboard();
+        });
+
         document.getElementById('units-modal-close').addEventListener('click', () => {
             document.getElementById('units-modal').classList.add('hidden');
         });
 
         document.getElementById('goto-modal-close').addEventListener('click', () => {
             document.getElementById('goto-modal').classList.add('hidden');
+        });
+
+        document.getElementById('cities-modal-close').addEventListener('click', () => {
+            document.getElementById('cities-modal').classList.add('hidden');
         });
 
         document.getElementById('resources-modal-close').addEventListener('click', () => {
@@ -429,6 +437,106 @@ class UI {
         }
 
         modal.classList.remove('hidden');
+    }
+
+    // Show cities dashboard modal
+    showCitiesDashboard() {
+        const modal = document.getElementById('cities-modal');
+        const list = document.getElementById('cities-dashboard-list');
+
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.cities || myPlayer.cities.length === 0) {
+            list.innerHTML = '<p class="no-selection">No cities</p>';
+            modal.classList.remove('hidden');
+            return;
+        }
+
+        let html = '<table class="cities-table"><thead><tr>';
+        html += '<th>City</th><th>Pop</th><th>Food</th>';
+        html += '<th>Building</th><th>Progress</th><th>Actions</th>';
+        html += '</tr></thead><tbody>';
+
+        for (const city of myPlayer.cities) {
+            // City name and location
+            html += `<tr data-city-id="${city.id}">`;
+            html += `<td><strong>${city.name}</strong><br><small>(${city.x}, ${city.y})</small></td>`;
+            html += `<td>${city.population}</td>`;
+            html += `<td>${city.food_store}/${city.food_needed}</td>`;
+
+            // Current production
+            const buildName = city.current_build ? city.current_build.name : 'Nothing';
+            html += `<td>${buildName}</td>`;
+
+            // Progress bar
+            if (city.current_build) {
+                const pct = city.production_needed > 0
+                    ? Math.floor((city.production / city.production_needed) * 100)
+                    : 0;
+                html += `<td><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+                html += `<small>${city.production}/${city.production_needed}</small></td>`;
+            } else {
+                html += `<td>-</td>`;
+            }
+
+            // Actions: Center button + Production dropdown
+            html += `<td class="city-actions">`;
+            html += `<button class="btn-city-center btn-unit" data-city-id="${city.id}">Center</button>`;
+            html += `<select class="production-select" data-city-id="${city.id}">`;
+            html += `<option value="">Change...</option>`;
+            html += `<optgroup label="Units">`;
+            for (const unit of Config.PRODUCTION_OPTIONS.units) {
+                html += `<option value="unit-${unit.type}">${unit.name} (${unit.cost})</option>`;
+            }
+            html += `</optgroup><optgroup label="Buildings">`;
+            for (const bld of Config.PRODUCTION_OPTIONS.buildings) {
+                if (!city.buildings || !city.buildings.includes(bld.name)) {
+                    html += `<option value="building-${bld.type}">${bld.name} (${bld.cost})</option>`;
+                }
+            }
+            html += `</optgroup></select></td></tr>`;
+        }
+
+        html += '</tbody></table>';
+        list.innerHTML = html;
+
+        // Event listeners for Center buttons
+        list.querySelectorAll('.btn-city-center').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const cityId = e.target.dataset.cityId;
+                const city = myPlayer.cities.find(c => c.id === cityId);
+                if (city) {
+                    renderer.centerOn(city.x, city.y);
+                    gameState.selectCity(city);
+                    this.updateSelectionPanel();
+                }
+            });
+        });
+
+        // Event listeners for production dropdowns
+        list.querySelectorAll('.production-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const cityId = e.target.dataset.cityId;
+                const value = e.target.value;
+                if (!value) return;
+
+                const [type, index] = value.split('-');
+                gameSocket.setProduction(cityId, type === 'unit', parseInt(index));
+                e.target.value = '';
+
+                // Refresh the dashboard after a short delay to show the change
+                setTimeout(() => this.showCitiesDashboard(), 100);
+            });
+        });
+
+        modal.classList.remove('hidden');
+    }
+
+    // Refresh cities dashboard if it's open
+    refreshCitiesDashboard() {
+        const modal = document.getElementById('cities-modal');
+        if (!modal.classList.contains('hidden')) {
+            this.showCitiesDashboard();
+        }
     }
 
     // Try to end turn with confirmation if there are active units

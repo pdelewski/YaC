@@ -886,3 +886,78 @@ body {
     margin-left: 0.5rem;
     vertical-align: middle;
 }
+
+/* ============ CITIES DASHBOARD ============ */
+.cities-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.cities-table th,
+.cities-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--panel-border-dark);
+}
+
+.cities-table th {
+    background: var(--panel-dark);
+    color: var(--text-highlight);
+    font-weight: bold;
+}
+
+.cities-table tbody tr:hover {
+    background: var(--panel-bg);
+}
+
+.city-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.production-select {
+    padding: 0.3rem;
+    background: var(--panel-dark);
+    color: var(--text-primary);
+    border: 1px solid var(--panel-border-dark);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.production-select:hover {
+    background: var(--panel-bg);
+}
+
+.production-select optgroup {
+    background: var(--panel-dark);
+    color: var(--text-highlight);
+}
+
+.production-select option {
+    background: var(--panel-dark);
+    color: var(--text-primary);
+}
+
+.progress-bar {
+    width: 80px;
+    height: 12px;
+    background: var(--panel-dark);
+    border: 1px solid var(--panel-border-dark);
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.3rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--text-highlight);
+    transition: width 0.3s ease;
+}
+
+.btn-city-center {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+}
