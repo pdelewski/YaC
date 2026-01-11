@@ -2604,6 +2604,9 @@ class Renderer {
         // Track which groups we've already drawn
         const drawnGroups = new Set();
 
+        // Track selected unit to render last (on top)
+        let selectedUnitData = null;
+
         for (const player of gameState.players) {
             if (!player.units || player.units.length === 0) {
                 continue;
@@ -2623,9 +2626,20 @@ class Renderer {
                     continue;
                 }
 
+                // Check if this is the selected unit - save for later to render on top
+                if (gameState.selectedUnit && unit.id === gameState.selectedUnit.id && !gameState.selectedGroup) {
+                    selectedUnitData = { unit, player };
+                    continue;
+                }
+
                 // Regular unit rendering
                 this.renderSingleUnit(unit, player, scaledTileSize);
             }
+        }
+
+        // Render selected unit last so it appears on top
+        if (selectedUnitData) {
+            this.renderSingleUnit(selectedUnitData.unit, selectedUnitData.player, scaledTileSize);
         }
     }
 
