@@ -5,10 +5,12 @@ class SpriteManager {
         this.terrain = {};
         this.transitions = {};
         this.resources = {};
+        this.cities = {};
         this.loaded = false;
         this.terrainLoaded = false;
         this.transitionsLoaded = false;
         this.resourcesLoaded = false;
+        this.citiesLoaded = false;
         this.loadPromise = null;
     }
 
@@ -64,12 +66,16 @@ class SpriteManager {
             loadPromises.push(this.loadResource(resourceType, `assets/resources/${resourceType}.png`));
         }
 
+        // Load city sprite
+        loadPromises.push(this.loadCity('city', 'assets/cities/city.png'));
+
         this.loadPromise = Promise.all(loadPromises).then(() => {
             this.loaded = true;
             this.terrainLoaded = true;
             this.transitionsLoaded = true;
             this.resourcesLoaded = true;
-            console.log('All sprites, terrain, transitions, and resources loaded successfully');
+            this.citiesLoaded = true;
+            console.log('All sprites, terrain, transitions, resources, and cities loaded successfully');
         }).catch(err => {
             console.warn('Some assets failed to load, using fallback rendering:', err);
         });
@@ -145,6 +151,23 @@ class SpriteManager {
         });
     }
 
+    // Load a city sprite
+    loadCity(name, path) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                this.cities[name] = img;
+                console.log(`Loaded city: ${name}`);
+                resolve(img);
+            };
+            img.onerror = (err) => {
+                console.warn(`Failed to load city: ${name}`);
+                reject(err);
+            };
+            img.src = path;
+        });
+    }
+
     // Get a sprite by unit type name
     getSprite(unitType) {
         const key = unitType.toLowerCase();
@@ -162,6 +185,11 @@ class SpriteManager {
         if (!resourceType) return null;
         const key = resourceType.toLowerCase();
         return this.resources[key] || null;
+    }
+
+    // Get a city sprite
+    getCity() {
+        return this.cities['city'] || null;
     }
 
     // Get a transition tile for two adjacent terrain types
@@ -203,6 +231,11 @@ class SpriteManager {
     // Check if resources are ready
     isResourcesReady() {
         return this.resourcesLoaded;
+    }
+
+    // Check if cities are ready
+    isCitiesReady() {
+        return this.citiesLoaded;
     }
 }
 

@@ -2507,90 +2507,272 @@ class Renderer {
         for (const player of gameState.players) {
             for (const city of player.cities) {
                 const screen = this.worldToScreen(city.x, city.y);
-                const cx = screen.x + scaledTileSize / 2;
-                const cy = screen.y + scaledTileSize / 2;
+                const x = screen.x;
+                const y = screen.y;
+                const s = scaledTileSize;
+                const cx = x + s / 2;
+                const cy = y + s / 2;
+                const ctx = this.ctx;
 
-                // City walls/fortification (outer rectangle)
-                this.ctx.fillStyle = '#4a4a4a';
-                this.ctx.fillRect(
-                    screen.x + scaledTileSize * 0.1,
-                    screen.y + scaledTileSize * 0.1,
-                    scaledTileSize * 0.8,
-                    scaledTileSize * 0.8
-                );
+                // Try to use city sprite
+                if (spriteManager && spriteManager.isCitiesReady()) {
+                    const citySprite = spriteManager.getCity();
+                    if (citySprite) {
+                        // Draw player color border/glow behind city
+                        ctx.fillStyle = player.color;
+                        ctx.globalAlpha = 0.4;
+                        ctx.beginPath();
+                        ctx.ellipse(cx, y + s * 0.85, s * 0.45, s * 0.12, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1.0;
 
-                // City inner area with player color
-                this.ctx.fillStyle = player.color;
-                this.ctx.fillRect(
-                    screen.x + scaledTileSize * 0.15,
-                    screen.y + scaledTileSize * 0.15,
-                    scaledTileSize * 0.7,
-                    scaledTileSize * 0.7
-                );
+                        // Draw city sprite
+                        ctx.drawImage(citySprite, x, y, s, s);
 
-                // City center (tower/building)
-                this.ctx.fillStyle = '#2a2a2a';
-                this.ctx.fillRect(
-                    screen.x + scaledTileSize * 0.35,
-                    screen.y + scaledTileSize * 0.25,
-                    scaledTileSize * 0.3,
-                    scaledTileSize * 0.4
-                );
+                        // Draw population and name
+                        this.drawCityOverlay(city, player, x, y, s, cx);
+                        continue;
+                    }
+                }
 
-                // Tower top
-                this.ctx.fillStyle = '#5a5a5a';
-                this.ctx.beginPath();
-                this.ctx.moveTo(screen.x + scaledTileSize * 0.3, screen.y + scaledTileSize * 0.25);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.5, screen.y + scaledTileSize * 0.1);
-                this.ctx.lineTo(screen.x + scaledTileSize * 0.7, screen.y + scaledTileSize * 0.25);
-                this.ctx.fill();
+                // Fallback: procedural drawing
+                // Shadow under city
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(cx, y + s * 0.92, s * 0.4, s * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
 
-                // Population number in shield
-                const shieldX = screen.x + scaledTileSize * 0.65;
-                const shieldY = screen.y + scaledTileSize * 0.65;
+                // Outer stone wall base
+                const wallColor = '#6b6b6b';
+                const wallDark = '#4a4a4a';
+                const wallLight = '#8a8a8a';
 
-                // Shield background
-                this.ctx.fillStyle = '#1a1a4a';
-                this.ctx.beginPath();
-                this.ctx.moveTo(shieldX, shieldY - scaledTileSize * 0.15);
-                this.ctx.lineTo(shieldX + scaledTileSize * 0.18, shieldY);
-                this.ctx.lineTo(shieldX, shieldY + scaledTileSize * 0.2);
-                this.ctx.lineTo(shieldX - scaledTileSize * 0.18, shieldY);
-                this.ctx.closePath();
-                this.ctx.fill();
-                this.ctx.strokeStyle = '#ffd700';
-                this.ctx.lineWidth = 1;
-                this.ctx.stroke();
+                ctx.fillStyle = wallColor;
+                ctx.fillRect(x + s * 0.08, y + s * 0.55, s * 0.84, s * 0.35);
+
+                // Wall texture lines
+                ctx.strokeStyle = wallDark;
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + s * 0.08, y + s * (0.62 + i * 0.1));
+                    ctx.lineTo(x + s * 0.92, y + s * (0.62 + i * 0.1));
+                    ctx.stroke();
+                }
+
+                // Battlements (crenellations) on wall
+                ctx.fillStyle = wallColor;
+                const bWidth = s * 0.1;
+                const bHeight = s * 0.08;
+                for (let i = 0; i < 5; i++) {
+                    if (i % 2 === 0) {
+                        ctx.fillRect(x + s * 0.08 + i * (s * 0.168), y + s * 0.47, bWidth, bHeight);
+                    }
+                }
+
+                // Gate in wall
+                ctx.fillStyle = '#2a1810';
+                ctx.fillRect(x + s * 0.4, y + s * 0.7, s * 0.2, s * 0.2);
+                // Gate arch
+                ctx.beginPath();
+                ctx.arc(x + s * 0.5, y + s * 0.7, s * 0.1, Math.PI, 0, true);
+                ctx.fill();
+                // Gate details
+                ctx.strokeStyle = '#1a0a05';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x + s * 0.5, y + s * 0.6);
+                ctx.lineTo(x + s * 0.5, y + s * 0.9);
+                ctx.stroke();
+
+                // Left tower
+                ctx.fillStyle = wallLight;
+                ctx.fillRect(x + s * 0.05, y + s * 0.35, s * 0.18, s * 0.55);
+                ctx.fillStyle = wallDark;
+                ctx.fillRect(x + s * 0.05, y + s * 0.35, s * 0.18, s * 0.03);
+                // Left tower roof
+                ctx.fillStyle = player.color;
+                ctx.beginPath();
+                ctx.moveTo(x + s * 0.02, y + s * 0.35);
+                ctx.lineTo(x + s * 0.14, y + s * 0.2);
+                ctx.lineTo(x + s * 0.26, y + s * 0.35);
+                ctx.fill();
+                // Tower flag
+                ctx.fillStyle = player.color;
+                ctx.fillRect(x + s * 0.13, y + s * 0.08, s * 0.12, s * 0.08);
+                ctx.fillStyle = wallDark;
+                ctx.fillRect(x + s * 0.13, y + s * 0.08, s * 0.02, s * 0.14);
+
+                // Right tower
+                ctx.fillStyle = wallLight;
+                ctx.fillRect(x + s * 0.77, y + s * 0.35, s * 0.18, s * 0.55);
+                ctx.fillStyle = wallDark;
+                ctx.fillRect(x + s * 0.77, y + s * 0.35, s * 0.18, s * 0.03);
+                // Right tower roof
+                ctx.fillStyle = player.color;
+                ctx.beginPath();
+                ctx.moveTo(x + s * 0.74, y + s * 0.35);
+                ctx.lineTo(x + s * 0.86, y + s * 0.2);
+                ctx.lineTo(x + s * 0.98, y + s * 0.35);
+                ctx.fill();
+
+                // Central keep/castle
+                ctx.fillStyle = '#7a7a7a';
+                ctx.fillRect(x + s * 0.3, y + s * 0.3, s * 0.4, s * 0.4);
+                // Keep roof
+                ctx.fillStyle = player.color;
+                ctx.beginPath();
+                ctx.moveTo(x + s * 0.25, y + s * 0.3);
+                ctx.lineTo(x + s * 0.5, y + s * 0.1);
+                ctx.lineTo(x + s * 0.75, y + s * 0.3);
+                ctx.fill();
+                // Keep windows
+                ctx.fillStyle = '#ffffaa';
+                ctx.fillRect(x + s * 0.38, y + s * 0.4, s * 0.08, s * 0.1);
+                ctx.fillRect(x + s * 0.54, y + s * 0.4, s * 0.08, s * 0.1);
+                ctx.fillRect(x + s * 0.46, y + s * 0.55, s * 0.08, s * 0.08);
+
+                // Small house on left
+                ctx.fillStyle = '#8b7355';
+                ctx.fillRect(x + s * 0.15, y + s * 0.6, s * 0.12, s * 0.15);
+                ctx.fillStyle = '#a05030';
+                ctx.beginPath();
+                ctx.moveTo(x + s * 0.13, y + s * 0.6);
+                ctx.lineTo(x + s * 0.21, y + s * 0.52);
+                ctx.lineTo(x + s * 0.29, y + s * 0.6);
+                ctx.fill();
+
+                // Small house on right
+                ctx.fillStyle = '#8b7355';
+                ctx.fillRect(x + s * 0.73, y + s * 0.6, s * 0.12, s * 0.15);
+                ctx.fillStyle = '#a05030';
+                ctx.beginPath();
+                ctx.moveTo(x + s * 0.71, y + s * 0.6);
+                ctx.lineTo(x + s * 0.79, y + s * 0.52);
+                ctx.lineTo(x + s * 0.87, y + s * 0.6);
+                ctx.fill();
+
+                // Population shield (bottom right)
+                const shieldX = x + s * 0.82;
+                const shieldY = y + s * 0.18;
+                const shieldSize = s * 0.22;
+
+                // Shield shape
+                ctx.fillStyle = player.color;
+                ctx.beginPath();
+                ctx.moveTo(shieldX, shieldY - shieldSize * 0.5);
+                ctx.lineTo(shieldX + shieldSize * 0.5, shieldY - shieldSize * 0.3);
+                ctx.lineTo(shieldX + shieldSize * 0.5, shieldY + shieldSize * 0.2);
+                ctx.lineTo(shieldX, shieldY + shieldSize * 0.5);
+                ctx.lineTo(shieldX - shieldSize * 0.5, shieldY + shieldSize * 0.2);
+                ctx.lineTo(shieldX - shieldSize * 0.5, shieldY - shieldSize * 0.3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
                 // Population number
-                this.ctx.fillStyle = '#fff';
-                this.ctx.font = `bold ${Math.max(8, scaledTileSize * 0.3)}px sans-serif`;
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                this.ctx.fillText(city.population.toString(), shieldX, shieldY);
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${Math.max(10, s * 0.22)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeText(city.population.toString(), shieldX, shieldY);
+                ctx.fillText(city.population.toString(), shieldX, shieldY);
 
-                // City name (if zoomed in enough)
-                if (this.camera.zoom >= 0.7) {
-                    // Name background
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    const nameWidth = this.ctx.measureText(city.name).width + 6;
-                    this.ctx.fillRect(
-                        cx - nameWidth / 2,
-                        screen.y + scaledTileSize + 2,
-                        nameWidth,
-                        14
-                    );
+                // City name banner
+                if (this.camera.zoom >= 0.5) {
+                    ctx.font = `bold ${Math.max(10, s * 0.26)}px MedievalSharp, serif`;
+                    const nameWidth = ctx.measureText(city.name).width + 12;
+
+                    // Banner background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                    const bannerY = y + s + 4;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - nameWidth / 2 - 5, bannerY);
+                    ctx.lineTo(cx + nameWidth / 2 + 5, bannerY);
+                    ctx.lineTo(cx + nameWidth / 2, bannerY + 16);
+                    ctx.lineTo(cx - nameWidth / 2, bannerY + 16);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Banner border
+                    ctx.strokeStyle = player.color;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
 
                     // Name text
-                    this.ctx.fillStyle = '#ffd700';
-                    this.ctx.font = `${Math.max(9, scaledTileSize * 0.28)}px MedievalSharp, serif`;
-                    this.ctx.fillText(
-                        city.name,
-                        cx,
-                        screen.y + scaledTileSize + 11
-                    );
+                    ctx.fillStyle = '#ffd700';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(city.name, cx, bannerY + 9);
                 }
             }
+        }
+    }
+
+    // Draw city overlay (population shield and name)
+    drawCityOverlay(city, player, x, y, s, cx) {
+        const ctx = this.ctx;
+
+        // Population shield (top right)
+        const shieldX = x + s * 0.82;
+        const shieldY = y + s * 0.18;
+        const shieldSize = s * 0.22;
+
+        // Shield shape
+        ctx.fillStyle = player.color;
+        ctx.beginPath();
+        ctx.moveTo(shieldX, shieldY - shieldSize * 0.5);
+        ctx.lineTo(shieldX + shieldSize * 0.5, shieldY - shieldSize * 0.3);
+        ctx.lineTo(shieldX + shieldSize * 0.5, shieldY + shieldSize * 0.2);
+        ctx.lineTo(shieldX, shieldY + shieldSize * 0.5);
+        ctx.lineTo(shieldX - shieldSize * 0.5, shieldY + shieldSize * 0.2);
+        ctx.lineTo(shieldX - shieldSize * 0.5, shieldY - shieldSize * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Population number
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(10, s * 0.22)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.strokeText(city.population.toString(), shieldX, shieldY);
+        ctx.fillText(city.population.toString(), shieldX, shieldY);
+
+        // City name banner
+        if (this.camera.zoom >= 0.5) {
+            ctx.font = `bold ${Math.max(10, s * 0.26)}px MedievalSharp, serif`;
+            const nameWidth = ctx.measureText(city.name).width + 12;
+
+            // Banner background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            const bannerY = y + s + 4;
+            ctx.beginPath();
+            ctx.moveTo(cx - nameWidth / 2 - 5, bannerY);
+            ctx.lineTo(cx + nameWidth / 2 + 5, bannerY);
+            ctx.lineTo(cx + nameWidth / 2, bannerY + 16);
+            ctx.lineTo(cx - nameWidth / 2, bannerY + 16);
+            ctx.closePath();
+            ctx.fill();
+
+            // Banner border
+            ctx.strokeStyle = player.color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Name text
+            ctx.fillStyle = '#ffd700';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(city.name, cx, bannerY + 9);
         }
     }
 
