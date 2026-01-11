@@ -687,6 +687,40 @@ class UI {
             groupBtn.classList.add('hidden');
             ungroupBtn.classList.add('hidden');
         }
+
+        // Update cursor and mode indicator
+        this.updateModeIndicator();
+    }
+
+    // Update cursor and mode indicator based on current mode
+    updateModeIndicator() {
+        const container = document.getElementById('canvas-container');
+        const indicator = document.getElementById('mode-indicator');
+
+        // Remove all mode classes
+        container.classList.remove('mode-move', 'mode-attack', 'mode-goto');
+
+        // Add current mode class and update indicator
+        switch (gameState.mode) {
+            case 'move':
+                container.classList.add('mode-move');
+                indicator.textContent = 'Move Mode - Click destination';
+                indicator.classList.remove('hidden');
+                break;
+            case 'attack':
+                container.classList.add('mode-attack');
+                indicator.textContent = 'Attack Mode - Click target';
+                indicator.classList.remove('hidden');
+                break;
+            case 'goto':
+                container.classList.add('mode-goto');
+                indicator.textContent = 'Goto Mode - Click destination';
+                indicator.classList.remove('hidden');
+                break;
+            default:
+                indicator.classList.add('hidden');
+                break;
+        }
     }
 
     // Update action buttons for group selection
@@ -721,6 +755,9 @@ class UI {
         groupBtn.classList.add('hidden');
         ungroupBtn.classList.remove('hidden');
         ungroupBtn.disabled = false;
+
+        // Update cursor and mode indicator
+        this.updateModeIndicator();
     }
 
     showCityModal(city) {

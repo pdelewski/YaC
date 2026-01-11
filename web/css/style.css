@@ -408,10 +408,42 @@ body {
     overflow: hidden;
     background: var(--ocean-bg);
     border: 2px solid var(--panel-border-dark);
+    position: relative;
 }
 
 #game-canvas {
     display: block;
+}
+
+/* Canvas cursor modes */
+#canvas-container.mode-move {
+    cursor: pointer;
+}
+
+#canvas-container.mode-attack {
+    cursor: crosshair;
+}
+
+#canvas-container.mode-goto {
+    cursor: crosshair;
+}
+
+/* Mode indicator overlay */
+.mode-indicator {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.4rem 1rem;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--text-highlight);
+    color: var(--text-highlight);
+    font-weight: bold;
+    font-size: 0.9rem;
+    z-index: 100;
+    pointer-events: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* ============ RIGHT PANEL ============ */
