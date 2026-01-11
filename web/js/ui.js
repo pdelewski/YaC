@@ -188,6 +188,10 @@ class UI {
             this.showCitiesDashboard();
         });
 
+        document.getElementById('menu-view-units-dashboard').addEventListener('click', () => {
+            this.showUnitsDashboard();
+        });
+
         document.getElementById('units-modal-close').addEventListener('click', () => {
             document.getElementById('units-modal').classList.add('hidden');
         });
@@ -198,6 +202,10 @@ class UI {
 
         document.getElementById('cities-modal-close').addEventListener('click', () => {
             document.getElementById('cities-modal').classList.add('hidden');
+        });
+
+        document.getElementById('units-dashboard-modal-close').addEventListener('click', () => {
+            document.getElementById('units-dashboard-modal').classList.add('hidden');
         });
 
         document.getElementById('resources-modal-close').addEventListener('click', () => {
@@ -536,6 +544,100 @@ class UI {
         const modal = document.getElementById('cities-modal');
         if (!modal.classList.contains('hidden')) {
             this.showCitiesDashboard();
+        }
+    }
+
+    // Show units dashboard modal
+    showUnitsDashboard() {
+        const modal = document.getElementById('units-dashboard-modal');
+        const list = document.getElementById('units-dashboard-list');
+
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.units || myPlayer.units.length === 0) {
+            list.innerHTML = '<p class="no-selection">No units</p>';
+            modal.classList.remove('hidden');
+            return;
+        }
+
+        let html = '<table class="units-table"><thead><tr>';
+        html += '<th>Unit</th><th>Location</th><th>Movement</th>';
+        html += '<th>Status</th><th>Goto</th><th>Actions</th>';
+        html += '</tr></thead><tbody>';
+
+        for (const unit of myPlayer.units) {
+            html += `<tr data-unit-id="${unit.id}">`;
+
+            // Unit type with veteran indicator
+            const veteranStar = unit.is_veteran ? ' <span class="veteran-star">★</span>' : '';
+            html += `<td><strong>${unit.type}</strong>${veteranStar}</td>`;
+
+            // Location
+            html += `<td>(${unit.x}, ${unit.y})</td>`;
+
+            // Movement
+            html += `<td>${unit.movement_left}</td>`;
+
+            // Status
+            let status = 'Ready';
+            if (unit.is_fortified) {
+                status = 'Fortified';
+            } else if (unit.movement_left === 0) {
+                status = 'Exhausted';
+            } else if (unit.group_id) {
+                status = 'In Group';
+            }
+            html += `<td>${status}</td>`;
+
+            // Goto destination
+            if (unit.has_goto) {
+                html += `<td class="goto-dest">(${unit.goto_x}, ${unit.goto_y})</td>`;
+            } else {
+                html += `<td>-</td>`;
+            }
+
+            // Actions
+            html += `<td class="unit-dashboard-actions">`;
+            html += `<button class="btn-unit-center btn-unit" data-unit-id="${unit.id}">Center</button>`;
+            if (unit.has_goto) {
+                html += `<button class="btn-unit-clear-goto btn-unit" data-unit-id="${unit.id}">Clear Goto</button>`;
+            }
+            html += `</td></tr>`;
+        }
+
+        html += '</tbody></table>';
+        list.innerHTML = html;
+
+        // Event listeners for Center buttons
+        list.querySelectorAll('.btn-unit-center').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const unitId = e.target.dataset.unitId;
+                const unit = myPlayer.units.find(u => u.id === unitId);
+                if (unit) {
+                    renderer.centerOn(unit.x, unit.y);
+                    gameState.selectUnit(unit);
+                    this.updateSelectionPanel();
+                }
+            });
+        });
+
+        // Event listeners for Clear Goto buttons
+        list.querySelectorAll('.btn-unit-clear-goto').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const unitId = e.target.dataset.unitId;
+                gameSocket.clearGoto(unitId);
+                // Refresh the dashboard after a short delay
+                setTimeout(() => this.showUnitsDashboard(), 100);
+            });
+        });
+
+        modal.classList.remove('hidden');
+    }
+
+    // Refresh units dashboard if it's open
+    refreshUnitsDashboard() {
+        const modal = document.getElementById('units-dashboard-modal');
+        if (!modal.classList.contains('hidden')) {
+            this.showUnitsDashboard();
         }
     }
 

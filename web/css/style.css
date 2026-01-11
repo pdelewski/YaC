@@ -961,3 +961,48 @@ body {
     font-size: 0.7rem;
     padding: 0.2rem 0.4rem;
 }
+
+/* ============ UNITS DASHBOARD ============ */
+.units-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.units-table th,
+.units-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--panel-border-dark);
+}
+
+.units-table th {
+    background: var(--panel-dark);
+    color: var(--text-highlight);
+    font-weight: bold;
+}
+
+.units-table tbody tr:hover {
+    background: var(--panel-bg);
+}
+
+.units-table .goto-dest {
+    color: var(--text-highlight);
+    font-weight: bold;
+}
+
+.unit-dashboard-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-unit-center,
+.btn-unit-clear-goto {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.veteran-star {
+    color: var(--text-highlight);
+}
