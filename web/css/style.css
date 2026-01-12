@@ -1351,6 +1351,13 @@ body {
     width: 100%;
 }
 
+.step-params-form .form-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
 /* Order step controls (dropdown to add new step) */
 .order-step-controls {
     margin-bottom: 1rem;

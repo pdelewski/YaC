@@ -269,16 +269,14 @@
                             <option value="">-- Add Step --</option>
                             <optgroup label="Production">
                                 <option value="build_unit">Build Unit</option>
-                                <option value="build_building">Build Building</option>
                             </optgroup>
-                            <optgroup label="Movement">
-                                <option value="goto">Send Unit To</option>
-                                <option value="group_units">Group Units</option>
-                                <option value="fortify">Fortify Unit</option>
+                            <optgroup label="→ Then (uses previous step)">
+                                <option value="send_to">→ Send To Location</option>
+                                <option value="wait_arrival">→ Wait for Arrival</option>
+                                <option value="fortify_all">→ Fortify All</option>
+                                <option value="group_all">→ Group All</option>
                             </optgroup>
-                            <optgroup label="Wait Conditions">
-                                <option value="wait_unit_arrives">Wait for Unit to Arrive</option>
-                                <option value="wait_units_at_location">Wait for Units at Location</option>
+                            <optgroup label="Utility">
                                 <option value="wait_turns">Wait Turns</option>
                             </optgroup>
                         </select>

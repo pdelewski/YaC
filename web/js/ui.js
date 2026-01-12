@@ -910,6 +910,76 @@ class UI {
                     </div>
                 `;
 
+            case 'goto_city_units':
+                return `
+                    <div class="param-group">
+                        <label>City:</label>
+                        <select id="param-city">${this.getCityOptions()}</select>
+                    </div>
+                    <div class="param-group">
+                        <label>Target X:</label>
+                        <input type="number" id="param-x" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Target Y:</label>
+                        <input type="number" id="param-y" min="0" value="0">
+                    </div>
+                    <p class="form-hint">Sends all units at this city to the destination.</p>
+                `;
+
+            case 'send_produced_units':
+                return `
+                    <div class="param-group">
+                        <label>City:</label>
+                        <select id="param-city">${this.getCityOptions()}</select>
+                    </div>
+                    <div class="param-group">
+                        <label>Target X:</label>
+                        <input type="number" id="param-x" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Target Y:</label>
+                        <input type="number" id="param-y" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Count:</label>
+                        <input type="number" id="param-count" min="1" value="1">
+                    </div>
+                    <p class="form-hint">Sends only NEW units produced after this step starts. Use after "Build Unit" step with matching count.</p>
+                `;
+
+            // Pipeline steps - use output from previous step
+            case 'send_to':
+                return `
+                    <div class="param-group">
+                        <label>Target X:</label>
+                        <input type="number" id="param-x" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Target Y:</label>
+                        <input type="number" id="param-y" min="0" value="0">
+                    </div>
+                    <p class="form-hint">Sends all units from the previous step to this location.</p>
+                `;
+
+            case 'wait_arrival':
+                return `
+                    <p class="form-hint">Waits for all units from the previous step to arrive at their destination.</p>
+                    <p class="form-hint">No parameters needed - uses destination from "→ Send To" step.</p>
+                `;
+
+            case 'fortify_all':
+                return `
+                    <p class="form-hint">Fortifies all units from the previous step.</p>
+                    <p class="form-hint">No parameters needed.</p>
+                `;
+
+            case 'group_all':
+                return `
+                    <p class="form-hint">Groups all units from the previous step (must be at same location).</p>
+                    <p class="form-hint">No parameters needed.</p>
+                `;
+
             case 'group_units':
                 return `
                     <div class="param-group">
@@ -1032,6 +1102,42 @@ class UI {
                 params.targetX = parseInt(document.getElementById('param-x').value) || 0;
                 params.targetY = parseInt(document.getElementById('param-y').value) || 0;
                 description = `${stepType === 'goto' ? 'Send' : 'Move'} unit to (${params.targetX}, ${params.targetY})`;
+                break;
+            }
+            case 'goto_city_units': {
+                params.cityId = document.getElementById('param-city').value;
+                params.targetX = parseInt(document.getElementById('param-x').value) || 0;
+                params.targetY = parseInt(document.getElementById('param-y').value) || 0;
+                const cityName = this.getCityName(params.cityId);
+                description = `Send units from ${cityName} to (${params.targetX}, ${params.targetY})`;
+                break;
+            }
+            case 'send_produced_units': {
+                params.cityId = document.getElementById('param-city').value;
+                params.targetX = parseInt(document.getElementById('param-x').value) || 0;
+                params.targetY = parseInt(document.getElementById('param-y').value) || 0;
+                params.count = parseInt(document.getElementById('param-count').value) || 1;
+                const cityName2 = this.getCityName(params.cityId);
+                description = `Send ${params.count} new unit(s) from ${cityName2} to (${params.targetX}, ${params.targetY})`;
+                break;
+            }
+            // Pipeline steps
+            case 'send_to': {
+                params.targetX = parseInt(document.getElementById('param-x').value) || 0;
+                params.targetY = parseInt(document.getElementById('param-y').value) || 0;
+                description = `→ Send to (${params.targetX}, ${params.targetY})`;
+                break;
+            }
+            case 'wait_arrival': {
+                description = `→ Wait for arrival`;
+                break;
+            }
+            case 'fortify_all': {
+                description = `→ Fortify all`;
+                break;
+            }
+            case 'group_all': {
+                description = `→ Group all`;
                 break;
             }
             case 'group_units': {
