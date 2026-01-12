@@ -3504,27 +3504,59 @@ class Renderer {
         ctx.stroke();
     }
 
+    // Render pulsing glow effect for selection
+    renderPulsingGlow(screenX, screenY, size, color = '#ffd700') {
+        const ctx = this.ctx;
+
+        // Calculate pulse intensity using sine wave (0.3 to 1.0 range)
+        const time = Date.now() / 1000; // Time in seconds
+        const pulseSpeed = 2; // Pulses per second
+        const pulseValue = (Math.sin(time * pulseSpeed * Math.PI * 2) + 1) / 2; // 0 to 1
+        const intensity = 0.3 + pulseValue * 0.7; // 0.3 to 1.0
+
+        // Draw multiple glow layers for a nice effect
+        const glowLayers = [
+            { offset: 8, alpha: 0.15 * intensity },
+            { offset: 6, alpha: 0.25 * intensity },
+            { offset: 4, alpha: 0.4 * intensity },
+            { offset: 2, alpha: 0.6 * intensity }
+        ];
+
+        ctx.save();
+
+        for (const layer of glowLayers) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = layer.offset * 2;
+            ctx.globalAlpha = layer.alpha;
+            ctx.strokeRect(
+                screenX - layer.offset,
+                screenY - layer.offset,
+                size + layer.offset * 2,
+                size + layer.offset * 2
+            );
+        }
+
+        // Inner bright border
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.5 * intensity;
+        ctx.strokeRect(screenX, screenY, size, size);
+
+        ctx.restore();
+    }
+
     // Render selection highlight
     renderSelection() {
         const scaledTileSize = this.tileSize * this.camera.zoom;
 
-        // Selected group (golden blinking frame)
+        // Selected group (golden pulsing glow)
         if (gameState.selectedGroup) {
             const units = gameState.getGroupUnits(gameState.selectedGroup);
             if (units.length > 0) {
                 const screen = this.worldToScreen(units[0].x, units[0].y);
 
-                // Blinking golden highlight for groups
-                if (Math.floor(Date.now() / 400) % 2 === 0) {
-                    this.ctx.strokeStyle = '#ffcc00'; // Gold color
-                    this.ctx.lineWidth = 5;
-                    this.ctx.strokeRect(
-                        screen.x - 2,
-                        screen.y - 2,
-                        scaledTileSize + 4,
-                        scaledTileSize + 4
-                    );
-                }
+                // Pulsing golden glow for groups
+                this.renderPulsingGlow(screen.x, screen.y, scaledTileSize, '#ffcc00');
 
                 // Show movement range when in move mode
                 if (gameState.mode === 'move' && gameState.canGroupMove(gameState.selectedGroup)) {
@@ -3537,22 +3569,18 @@ class Renderer {
                 }
             }
         }
-        // Selected unit (black blinking frame)
+        // Selected unit (golden pulsing glow for active, gray for exhausted)
         else if (gameState.selectedUnit) {
             const unit = gameState.selectedUnit;
             const screen = this.worldToScreen(unit.x, unit.y);
 
-            // Blinking highlight - black border, larger
-            if (Math.floor(Date.now() / 400) % 2 === 0) {
-                this.ctx.strokeStyle = '#000000';
-                this.ctx.lineWidth = 5;
-                this.ctx.strokeRect(
-                    screen.x - 2,
-                    screen.y - 2,
-                    scaledTileSize + 4,
-                    scaledTileSize + 4
-                );
-            }
+            // Choose color based on unit state
+            // Gold = can act, Gray = exhausted/fortified
+            const canAct = unit.movement_left > 0 && !unit.is_fortified;
+            const glowColor = canAct ? '#ffd700' : '#888888';
+
+            // Pulsing glow for units
+            this.renderPulsingGlow(screen.x, screen.y, scaledTileSize, glowColor);
 
             // Show movement range when in move mode
             if (gameState.mode === 'move' && unit.movement_left > 0) {
@@ -3565,19 +3593,12 @@ class Renderer {
             }
         }
 
-        // Selected city
+        // Selected city (cyan pulsing glow to differentiate from units)
         if (gameState.selectedCity) {
             const city = gameState.selectedCity;
             const screen = this.worldToScreen(city.x, city.y);
 
-            this.ctx.strokeStyle = '#000000';
-            this.ctx.lineWidth = 5;
-            this.ctx.strokeRect(
-                screen.x - 2,
-                screen.y - 2,
-                scaledTileSize + 4,
-                scaledTileSize + 4
-            );
+            this.renderPulsingGlow(screen.x, screen.y, scaledTileSize, '#00ffff');
         }
     }
 

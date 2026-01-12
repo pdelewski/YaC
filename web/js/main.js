@@ -88,6 +88,21 @@ function setupWebSocketCallbacks() {
         ui.updateTopBar();
         ui.updateSelectionPanel();
 
+        // Auto-advance to next unit if currently selected unit is exhausted
+        if (gameState.selectedUnit && gameState.isMyTurn()) {
+            // Re-fetch the unit from updated state to get current movement
+            const updatedUnit = gameState.getUnit(gameState.selectedUnit.id);
+            if (updatedUnit) {
+                const isExhausted = updatedUnit.movement_left === 0 || updatedUnit.is_fortified;
+                if (isExhausted) {
+                    // Small delay to let the current action visually complete
+                    setTimeout(() => {
+                        inputHandler.selectNextUnit();
+                    }, 150);
+                }
+            }
+        }
+
         // Process orders at the start of player's turn
         if (gameState.isMyTurn() && gameState.turn !== lastProcessedTurn) {
             lastProcessedTurn = gameState.turn;
