@@ -1596,6 +1596,24 @@ class UI {
                     <button class="btn-cancel-goto btn-unit" data-unit-id="${unit.id}">Cancel</button></p>`;
             }
 
+            // Find other units at the same location
+            const myPlayer = gameState.getMyPlayer();
+            let otherUnitsHtml = '';
+            if (myPlayer) {
+                const otherUnits = myPlayer.units.filter(u =>
+                    u.id !== unit.id && u.x === unit.x && u.y === unit.y
+                );
+                if (otherUnits.length > 0) {
+                    const unitListHtml = otherUnits.map(u =>
+                        `<li class="other-unit-item" data-unit-id="${u.id}">${u.type} (M:${u.movement_left}${u.is_fortified ? ' F' : ''}${u.has_goto ? ' →' : ''})</li>`
+                    ).join('');
+                    otherUnitsHtml = `
+                        <p class="other-units-header"><strong>Also here (${otherUnits.length}):</strong></p>
+                        <ul class="unit-list other-units-list">${unitListHtml}</ul>
+                    `;
+                }
+            }
+
             this.selectionInfo.innerHTML = `
                 <p><strong>${unit.type}</strong></p>
                 <p><span class="stat-label">Owner:</span> ${owner ? owner.name : 'Unknown'}</p>
@@ -1605,6 +1623,7 @@ class UI {
                 ${unit.is_veteran ? '<p>Veteran</p>' : ''}
                 ${unit.is_fortified ? '<p>Fortified</p>' : ''}
                 ${gotoHtml}
+                ${otherUnitsHtml}
             `;
 
             // Add event listener for cancel goto button
@@ -1615,6 +1634,19 @@ class UI {
                     gameSocket.clearGoto(unitId);
                 });
             }
+
+            // Add click handlers for other units list
+            const otherUnitItems = this.selectionInfo.querySelectorAll('.other-unit-item');
+            otherUnitItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const unitId = e.target.dataset.unitId;
+                    const clickedUnit = gameState.getUnit(unitId);
+                    if (clickedUnit) {
+                        gameState.selectUnit(clickedUnit);
+                        this.updateSelectionPanel();
+                    }
+                });
+            });
 
             // Show unit actions if it's my unit and my turn
             if (isMine && gameState.isMyTurn()) {

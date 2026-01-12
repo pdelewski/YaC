@@ -545,6 +545,24 @@ body {
     background: rgba(139, 115, 85, 0.2);
 }
 
+/* Other units at same location */
+.other-units-header {
+    margin-top: 0.6rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--panel-border-dark);
+    font-size: 0.85rem;
+}
+
+.other-unit-item {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.other-unit-item:hover {
+    background: rgba(255, 215, 0, 0.2) !important;
+    color: var(--text-highlight);
+}
+
 .stat-label {
     color: var(--text-secondary);
 }
