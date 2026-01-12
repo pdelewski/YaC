@@ -332,6 +332,36 @@ func (a *FortifyAction) Execute(g *GameState) error {
 	return nil
 }
 
+// UnfortifyAction wakes up a fortified unit
+type UnfortifyAction struct {
+	UnitID string `json:"unit_id"`
+}
+
+// Validate checks if the unit can be unfortified
+func (a *UnfortifyAction) Validate(g *GameState, playerID string) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	if unit.OwnerID != playerID {
+		return ErrNotYourUnit
+	}
+
+	return nil
+}
+
+// Execute unfortifies the unit
+func (a *UnfortifyAction) Execute(g *GameState) error {
+	unit := g.GetUnit(a.UnitID)
+	if unit == nil {
+		return ErrUnitNotFound
+	}
+
+	unit.Unfortify()
+	return nil
+}
+
 // SkipUnitAction skips the unit's turn
 type SkipUnitAction struct {
 	UnitID string `json:"unit_id"`

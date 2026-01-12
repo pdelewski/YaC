@@ -77,6 +77,7 @@
                     <span class="menu-title">Orders</span>
                     <div class="menu-dropdown">
                         <div class="menu-option" id="menu-new-order">New Order</div>
+                        <div class="menu-option" id="menu-orders-dashboard">Orders Dashboard</div>
                     </div>
                 </div>
             </div>
@@ -134,6 +135,7 @@
                         <button id="btn-move" class="btn-unit" title="Move (M)">Move</button>
                         <button id="btn-attack" class="btn-unit" title="Attack (A)">Attack</button>
                         <button id="btn-fortify" class="btn-unit" title="Fortify (F)">Fortify</button>
+                        <button id="btn-unfortify" class="btn-unit hidden" title="Wake (W)">Wake</button>
                         <button id="btn-goto" class="btn-unit" title="Goto (O)">Goto</button>
                         <button id="btn-found-city" class="btn-unit hidden" title="Found City (B)">Build City</button>
                         <button id="btn-build-road" class="btn-unit hidden" title="Build Road (R)">Build Road</button>
@@ -146,7 +148,7 @@
                     <div class="keyboard-hints">
                         <kbd>Arrows</kbd> Move unit / Pan map<br>
                         <kbd>Shift+Arrows</kbd> Pan map <kbd>Numpad</kbd> 8-dir move<br>
-                        <kbd>F</kbd> Fortify <kbd>B</kbd> Build City <kbd>R</kbd> Road<br>
+                        <kbd>F</kbd> Fortify <kbd>W</kbd> Wake <kbd>B</kbd> Build City <kbd>R</kbd> Road<br>
                         <kbd>Space</kbd> Skip <kbd>Tab</kbd> Next unit <kbd>Enter</kbd> End turn<br>
                         <kbd>G</kbd> Group <kbd>U</kbd> Ungroup <kbd>O</kbd> Goto
                     </div>
@@ -166,6 +168,10 @@
                     <div class="city-buildings">
                         <h4>Buildings</h4>
                         <ul id="city-building-list"></ul>
+                    </div>
+                    <div class="city-garrison">
+                        <h4>Garrison</h4>
+                        <div id="garrison-units"></div>
                     </div>
                     <div class="city-production">
                         <h4>Build</h4>
@@ -238,11 +244,76 @@
                     <div id="units-dashboard-list"></div>
                 </div>
             </div>
+
+            <!-- New Order Modal -->
+            <div id="new-order-modal" class="modal hidden">
+                <div class="modal-content modal-wide">
+                    <span class="close-btn" id="new-order-modal-close">&times;</span>
+                    <h2>Create New Order</h2>
+                    <div class="order-form">
+                        <div class="form-group">
+                            <label for="order-name">Order Name:</label>
+                            <input type="text" id="order-name" placeholder="My Order" maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="order-description">Description:</label>
+                            <input type="text" id="order-description" placeholder="Optional description" maxlength="100">
+                        </div>
+                    </div>
+                    <h3>Steps</h3>
+                    <div id="order-steps-list" class="order-steps-list">
+                        <p class="no-selection">No steps added yet</p>
+                    </div>
+                    <div class="order-step-controls">
+                        <select id="step-type-select">
+                            <option value="">-- Add Step --</option>
+                            <optgroup label="Production">
+                                <option value="build_unit">Build Unit</option>
+                                <option value="build_building">Build Building</option>
+                            </optgroup>
+                            <optgroup label="Movement">
+                                <option value="goto">Send Unit To</option>
+                                <option value="group_units">Group Units</option>
+                                <option value="fortify">Fortify Unit</option>
+                            </optgroup>
+                            <optgroup label="Wait Conditions">
+                                <option value="wait_unit_arrives">Wait for Unit to Arrive</option>
+                                <option value="wait_units_at_location">Wait for Units at Location</option>
+                                <option value="wait_turns">Wait Turns</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div id="step-params-form" class="step-params-form hidden"></div>
+                    <div class="modal-actions">
+                        <button id="btn-save-order" class="btn-primary">Save Order</button>
+                        <button id="btn-cancel-order" class="btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Dashboard Modal -->
+            <div id="orders-dashboard-modal" class="modal hidden">
+                <div class="modal-content modal-wide">
+                    <span class="close-btn" id="orders-dashboard-modal-close">&times;</span>
+                    <h2>Orders Dashboard</h2>
+                    <div id="orders-dashboard-list"></div>
+                </div>
+            </div>
+
+            <!-- Order Detail Modal -->
+            <div id="order-detail-modal" class="modal hidden">
+                <div class="modal-content modal-wide">
+                    <span class="close-btn" id="order-detail-modal-close">&times;</span>
+                    <h2 id="order-detail-title">Order Details</h2>
+                    <div id="order-detail-content"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="js/config.js"></script>
     <script src="js/sprites.js"></script>
+    <script src="js/orders.js"></script>
     <script src="js/websocket.js"></script>
     <script src="js/game.js"></script>
     <script src="js/renderer.js"></script>

@@ -711,6 +711,50 @@ body {
     color: var(--text-primary);
 }
 
+/* ============ CITY GARRISON ============ */
+.city-garrison {
+    margin-bottom: 1rem;
+}
+
+.city-garrison h4 {
+    color: var(--text-secondary);
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.garrison-unit {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.3rem;
+    background: var(--panel-dark);
+    border: 1px solid var(--panel-border-dark);
+}
+
+.garrison-unit:hover {
+    background: var(--panel-bg);
+}
+
+.garrison-unit-info {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.btn-activate-unit {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+}
+
+.no-garrison {
+    color: #666;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 0.4rem;
+}
+
 /* ============ GAME OVER MODAL ============ */
 #game-over-modal .modal-content {
     text-align: center;
@@ -962,6 +1006,24 @@ body {
     padding: 0.2rem 0.4rem;
 }
 
+.garrison-cell {
+    max-width: 120px;
+    font-size: 0.85rem;
+}
+
+.garrison-cell small {
+    color: var(--text-secondary);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.garrison-empty {
+    color: #666;
+    font-style: italic;
+}
+
 /* ============ UNITS DASHBOARD ============ */
 .units-table {
     width: 100%;
@@ -1005,4 +1067,429 @@ body {
 
 .veteran-star {
     color: var(--text-highlight);
+}
+
+/* ============ ORDERS SYSTEM ============ */
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.orders-table th,
+.orders-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--panel-border-dark);
+}
+
+.orders-table th {
+    background: var(--panel-dark);
+    color: var(--text-highlight);
+    font-weight: bold;
+}
+
+.orders-table tbody tr:hover {
+    background: var(--panel-bg);
+}
+
+/* Order status colors */
+.status-active {
+    color: #00ff00;
+    font-weight: bold;
+}
+
+.status-paused {
+    color: #ffaa00;
+    font-weight: bold;
+}
+
+.status-completed {
+    color: #888;
+}
+
+.status-failed {
+    color: #ff4444;
+    font-weight: bold;
+}
+
+.order-actions {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.order-actions .btn-unit {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.btn-small {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid;
+    border-color: var(--panel-border-light) var(--panel-border-dark) var(--panel-border-dark) var(--panel-border-light);
+    background: var(--panel-dark);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'MedievalSharp', serif;
+}
+
+.btn-small:hover {
+    background: var(--panel-bg);
+    color: var(--text-primary);
+}
+
+.btn-small:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Order steps list in modal */
+.order-steps-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--panel-dark);
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light) var(--panel-border-light) var(--panel-border-dark);
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Order step item in editor */
+.order-step-item {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem;
+    margin: 0.2rem 0;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-border-dark);
+}
+
+.order-step-item:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.step-item-actions {
+    display: flex;
+    gap: 0.2rem;
+    margin-left: auto;
+}
+
+.order-step {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    margin: 0.3rem 0;
+    background: rgba(0, 0, 0, 0.2);
+    border-left: 3px solid transparent;
+    position: relative;
+}
+
+.order-step.step-current {
+    border-left-color: var(--text-highlight);
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.order-step.step-completed {
+    opacity: 0.6;
+    border-left-color: #00ff00;
+}
+
+.order-step.step-failed {
+    border-left-color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.order-step.step-in_progress {
+    border-left-color: #00aaff;
+    background: rgba(0, 170, 255, 0.1);
+}
+
+.step-number {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--panel-bg);
+    text-align: center;
+    line-height: 24px;
+    margin-right: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.step-icon {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+}
+
+.step-desc {
+    flex: 1;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.step-status {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+}
+
+.step-status.status-pending {
+    background: #444;
+    color: #888;
+}
+
+.step-status.status-in_progress {
+    background: #0055aa;
+    color: #fff;
+}
+
+.step-status.status-completed {
+    background: #006600;
+    color: #aaffaa;
+}
+
+.step-status.status-failed {
+    background: #660000;
+    color: #ffaaaa;
+}
+
+.step-status.status-skipped {
+    background: #553300;
+    color: #ffcc88;
+}
+
+.mini-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: var(--text-highlight);
+}
+
+.step-actions {
+    display: flex;
+    gap: 0.2rem;
+    margin-left: 0.5rem;
+}
+
+.step-actions button {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-size: 0.8rem;
+    line-height: 1;
+    border: 1px solid var(--panel-border-dark);
+    background: var(--panel-dark);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.step-actions button:hover {
+    background: var(--panel-bg);
+    color: var(--text-primary);
+}
+
+/* Step parameter form */
+.step-params-form {
+    background: var(--panel-dark);
+    padding: 1rem;
+    margin: 0.5rem 0 1rem 0;
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light) var(--panel-border-light) var(--panel-border-dark);
+}
+
+.step-params-form h4 {
+    color: var(--text-highlight);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.step-params-form .form-group {
+    margin-bottom: 0.75rem;
+}
+
+.step-params-form label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
+
+.step-params-form input,
+.step-params-form select {
+    width: 100%;
+    padding: 0.4rem;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border-dark);
+    color: var(--text-primary);
+    font-family: 'MedievalSharp', serif;
+    font-size: 0.9rem;
+}
+
+.step-params-form input:focus,
+.step-params-form select:focus {
+    outline: none;
+    border-color: var(--text-highlight);
+}
+
+.step-params-form .form-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.step-params-form .form-row .form-group {
+    flex: 1;
+}
+
+.step-params-form .btn-add-step {
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+/* Order step controls (dropdown to add new step) */
+.order-step-controls {
+    margin-bottom: 1rem;
+}
+
+.order-step-controls select {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--panel-dark);
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light) var(--panel-border-light) var(--panel-border-dark);
+    color: var(--text-primary);
+    font-family: 'MedievalSharp', serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.order-step-controls select:hover {
+    background: var(--panel-bg);
+}
+
+/* Modal actions (save/cancel buttons) */
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--panel-border-dark);
+}
+
+.modal-actions button {
+    flex: 1;
+}
+
+.btn-secondary {
+    padding: 0.6rem 1rem;
+    border: 2px solid;
+    border-color: var(--panel-border-light) var(--panel-border-dark) var(--panel-border-dark) var(--panel-border-light);
+    background: var(--panel-dark);
+    color: var(--text-secondary);
+    font-family: 'MedievalSharp', serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: var(--panel-bg);
+    color: var(--text-primary);
+}
+
+/* Order detail view */
+.order-info {
+    background: var(--panel-dark);
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light) var(--panel-border-light) var(--panel-border-dark);
+}
+
+.order-info p {
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
+}
+
+.order-info .error {
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border-left: 3px solid #ff4444;
+}
+
+.order-detail-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.order-detail-actions button {
+    flex: 1;
+}
+
+/* Order form in new order modal */
+.order-form {
+    background: var(--panel-dark);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 2px solid;
+    border-color: var(--panel-border-dark) var(--panel-border-light) var(--panel-border-light) var(--panel-border-dark);
+}
+
+.order-form .form-group {
+    margin-bottom: 0.75rem;
+}
+
+.order-form .form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* No orders message */
+.no-orders {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 2rem;
+}
+
+/* Orders paused notification styling */
+.orders-paused-alert {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--panel-bg);
+    border: 4px solid;
+    border-color: #ffaa00 #885500 #885500 #ffaa00;
+    padding: 1.5rem;
+    z-index: 2000;
+    box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.6);
+    max-width: 400px;
+}
+
+.orders-paused-alert h3 {
+    color: #ffaa00;
+    margin-bottom: 0.5rem;
+}
+
+.orders-paused-alert ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+}
+
+.orders-paused-alert li {
+    padding: 0.3rem 0;
+    color: var(--text-primary);
+}
+
+.orders-paused-alert button {
+    margin-top: 1rem;
+    width: 100%;
 }

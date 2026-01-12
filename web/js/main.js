@@ -3,6 +3,9 @@
 // Track if this is the first game state load
 let isFirstLoad = true;
 
+// Track last processed turn to avoid duplicate order processing
+let lastProcessedTurn = -1;
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Yet Another Civilization game initializing...');
@@ -13,6 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize UI
     ui = new UI();
+
+    // Initialize orders manager and load saved orders
+    ordersManager = initOrdersManager();
+    ordersManager.loadFromLocalStorage();
+    console.log(`Loaded ${ordersManager.getAllOrders().length} orders from storage`);
 
     // Initialize renderer
     const canvas = document.getElementById('game-canvas');
@@ -79,6 +87,34 @@ function setupWebSocketCallbacks() {
 
         ui.updateTopBar();
         ui.updateSelectionPanel();
+
+        // Process orders at the start of player's turn
+        if (gameState.isMyTurn() && gameState.turn !== lastProcessedTurn) {
+            lastProcessedTurn = gameState.turn;
+
+            const activeOrders = ordersManager.getActiveOrders();
+            console.log(`[Orders] Turn ${gameState.turn}: Processing ${activeOrders.length} active orders`);
+
+            for (const order of activeOrders) {
+                const step = order.getCurrentStep();
+                if (step) {
+                    console.log(`[Orders] Order "${order.name}": step ${order.currentStepIndex + 1}/${order.steps.length} - ${step.type} (${step.status})`);
+                }
+            }
+
+            const pausedOrders = ordersManager.processOrders(gameState);
+
+            // Save orders after processing (status may have changed)
+            ordersManager.saveToLocalStorage();
+
+            // Notify user if any orders were paused
+            if (pausedOrders.length > 0) {
+                ui.showOrdersPausedNotification(pausedOrders);
+            }
+
+            // Refresh orders dashboard if it's open
+            ui.refreshOrdersDashboard();
+        }
 
         // Check for game over
         if (gameState.winner) {

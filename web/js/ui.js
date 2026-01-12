@@ -20,6 +20,7 @@ class UI {
         this.cityProd = document.getElementById('city-prod');
         this.cityProdNeeded = document.getElementById('city-prod-needed');
         this.cityBuildingList = document.getElementById('city-building-list');
+        this.garrisonUnits = document.getElementById('garrison-units');
         this.productionOptions = document.getElementById('production-options');
 
         // Game over modal
@@ -67,6 +68,12 @@ class UI {
         document.getElementById('btn-fortify').addEventListener('click', () => {
             if (gameState.selectedUnit) {
                 gameSocket.fortifyUnit(gameState.selectedUnit.id);
+            }
+        });
+
+        document.getElementById('btn-unfortify').addEventListener('click', () => {
+            if (gameState.selectedUnit && gameState.selectedUnit.is_fortified) {
+                gameSocket.unfortifyUnit(gameState.selectedUnit.id);
             }
         });
 
@@ -210,6 +217,41 @@ class UI {
 
         document.getElementById('resources-modal-close').addEventListener('click', () => {
             document.getElementById('resources-modal').classList.add('hidden');
+        });
+
+        // Orders menu handlers
+        document.getElementById('menu-new-order').addEventListener('click', () => {
+            this.showNewOrderModal();
+        });
+
+        document.getElementById('menu-orders-dashboard').addEventListener('click', () => {
+            this.showOrdersDashboard();
+        });
+
+        document.getElementById('new-order-modal-close').addEventListener('click', () => {
+            document.getElementById('new-order-modal').classList.add('hidden');
+            this.currentEditingOrder = null;
+        });
+
+        document.getElementById('orders-dashboard-modal-close').addEventListener('click', () => {
+            document.getElementById('orders-dashboard-modal').classList.add('hidden');
+        });
+
+        document.getElementById('order-detail-modal-close').addEventListener('click', () => {
+            document.getElementById('order-detail-modal').classList.add('hidden');
+        });
+
+        document.getElementById('btn-save-order').addEventListener('click', () => {
+            this.saveCurrentOrder();
+        });
+
+        document.getElementById('btn-cancel-order').addEventListener('click', () => {
+            document.getElementById('new-order-modal').classList.add('hidden');
+            this.currentEditingOrder = null;
+        });
+
+        document.getElementById('step-type-select').addEventListener('change', (e) => {
+            this.showStepParamsForm(e.target.value);
         });
 
         // Toolbar handlers
@@ -461,7 +503,7 @@ class UI {
 
         let html = '<table class="cities-table"><thead><tr>';
         html += '<th>City</th><th>Pop</th><th>Food</th>';
-        html += '<th>Building</th><th>Progress</th><th>Actions</th>';
+        html += '<th>Garrison</th><th>Building</th><th>Progress</th><th>Actions</th>';
         html += '</tr></thead><tbody>';
 
         for (const city of myPlayer.cities) {
@@ -470,6 +512,18 @@ class UI {
             html += `<td><strong>${city.name}</strong><br><small>(${city.x}, ${city.y})</small></td>`;
             html += `<td>${city.population}</td>`;
             html += `<td>${city.food_store}/${city.food_needed}</td>`;
+
+            // Garrison - units in this city
+            const garrisonedUnits = myPlayer.units.filter(u => u.x === city.x && u.y === city.y);
+            if (garrisonedUnits.length > 0) {
+                const garrisonSummary = garrisonedUnits.map(u => {
+                    const fortified = u.is_fortified ? '⛨' : '';
+                    return `${u.type}${fortified}`;
+                }).join(', ');
+                html += `<td class="garrison-cell" title="${garrisonSummary}">${garrisonedUnits.length} unit${garrisonedUnits.length > 1 ? 's' : ''}<br><small>${garrisonSummary}</small></td>`;
+            } else {
+                html += `<td class="garrison-cell garrison-empty">None</td>`;
+            }
 
             // Current production
             const buildName = city.current_build ? city.current_build.name : 'Nothing';
@@ -638,6 +692,655 @@ class UI {
         const modal = document.getElementById('units-dashboard-modal');
         if (!modal.classList.contains('hidden')) {
             this.showUnitsDashboard();
+        }
+    }
+
+    // ============ ORDERS UI METHODS ============
+
+    // Show new order creation modal
+    showNewOrderModal() {
+        const modal = document.getElementById('new-order-modal');
+        const nameInput = document.getElementById('order-name');
+        const descInput = document.getElementById('order-description');
+        const stepsList = document.getElementById('order-steps-list');
+        const stepSelect = document.getElementById('step-type-select');
+        const paramsForm = document.getElementById('step-params-form');
+
+        // Reset form
+        nameInput.value = '';
+        descInput.value = '';
+        stepSelect.value = '';
+        paramsForm.classList.add('hidden');
+        paramsForm.innerHTML = '';
+
+        // Create a new order object for editing
+        this.currentEditingOrder = {
+            name: '',
+            description: '',
+            steps: []
+        };
+
+        this.renderOrderSteps();
+        modal.classList.remove('hidden');
+    }
+
+    // Show edit order modal (load existing order for editing)
+    showEditOrderModal(orderId) {
+        const order = ordersManager.getOrder(orderId);
+        if (!order) {
+            alert('Order not found');
+            return;
+        }
+
+        const modal = document.getElementById('new-order-modal');
+        const nameInput = document.getElementById('order-name');
+        const descInput = document.getElementById('order-description');
+        const stepSelect = document.getElementById('step-type-select');
+        const paramsForm = document.getElementById('step-params-form');
+
+        // Populate form with existing order data
+        nameInput.value = order.name;
+        descInput.value = order.description || '';
+        stepSelect.value = '';
+        paramsForm.classList.add('hidden');
+        paramsForm.innerHTML = '';
+
+        // Create editing object with existing order data
+        // Include the order ID so saveCurrentOrder knows we're editing
+        this.currentEditingOrder = {
+            id: order.id,  // Important: this tells us we're editing
+            name: order.name,
+            description: order.description,
+            steps: order.steps.map(step => ({
+                type: step.type,
+                params: { ...step.params },
+                description: step.description
+            }))
+        };
+
+        // Close the orders dashboard modal if open
+        document.getElementById('orders-dashboard-modal').classList.add('hidden');
+
+        this.renderOrderSteps();
+        modal.classList.remove('hidden');
+    }
+
+    // Render the steps list in the order editor
+    renderOrderSteps() {
+        const stepsList = document.getElementById('order-steps-list');
+
+        if (!this.currentEditingOrder || this.currentEditingOrder.steps.length === 0) {
+            stepsList.innerHTML = '<p class="no-selection">No steps added yet</p>';
+            return;
+        }
+
+        let html = '';
+        this.currentEditingOrder.steps.forEach((step, index) => {
+            html += `
+                <div class="order-step-item" data-index="${index}">
+                    <span class="step-number">${index + 1}</span>
+                    <span class="step-icon">${getStepIcon(step.type)}</span>
+                    <span class="step-desc">${step.description}</span>
+                    <div class="step-item-actions">
+                        <button class="btn-step-up btn-small" data-index="${index}" ${index === 0 ? 'disabled' : ''}>↑</button>
+                        <button class="btn-step-down btn-small" data-index="${index}" ${index === this.currentEditingOrder.steps.length - 1 ? 'disabled' : ''}>↓</button>
+                        <button class="btn-step-remove btn-small" data-index="${index}">×</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        stepsList.innerHTML = html;
+
+        // Add event listeners
+        stepsList.querySelectorAll('.btn-step-up').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                this.moveStepUp(index);
+            });
+        });
+
+        stepsList.querySelectorAll('.btn-step-down').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                this.moveStepDown(index);
+            });
+        });
+
+        stepsList.querySelectorAll('.btn-step-remove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                this.removeStep(index);
+            });
+        });
+    }
+
+    moveStepUp(index) {
+        if (index > 0) {
+            const temp = this.currentEditingOrder.steps[index];
+            this.currentEditingOrder.steps[index] = this.currentEditingOrder.steps[index - 1];
+            this.currentEditingOrder.steps[index - 1] = temp;
+            this.renderOrderSteps();
+        }
+    }
+
+    moveStepDown(index) {
+        if (index < this.currentEditingOrder.steps.length - 1) {
+            const temp = this.currentEditingOrder.steps[index];
+            this.currentEditingOrder.steps[index] = this.currentEditingOrder.steps[index + 1];
+            this.currentEditingOrder.steps[index + 1] = temp;
+            this.renderOrderSteps();
+        }
+    }
+
+    removeStep(index) {
+        this.currentEditingOrder.steps.splice(index, 1);
+        this.renderOrderSteps();
+    }
+
+    // Show parameter form for selected step type
+    showStepParamsForm(stepType) {
+        const paramsForm = document.getElementById('step-params-form');
+
+        if (!stepType) {
+            paramsForm.classList.add('hidden');
+            paramsForm.innerHTML = '';
+            return;
+        }
+
+        let html = this.getStepParamsForm(stepType);
+        html += `<button id="btn-add-step" class="btn-primary">Add Step</button>`;
+
+        paramsForm.innerHTML = html;
+        paramsForm.classList.remove('hidden');
+
+        // Add event listener for add step button
+        document.getElementById('btn-add-step').addEventListener('click', () => {
+            this.addStepFromForm(stepType);
+        });
+    }
+
+    // Get parameter form HTML for a step type
+    getStepParamsForm(stepType) {
+        const myPlayer = gameState.getMyPlayer();
+
+        switch (stepType) {
+            case 'build_unit':
+                return `
+                    <div class="param-group">
+                        <label>City:</label>
+                        <select id="param-city">${this.getCityOptions()}</select>
+                    </div>
+                    <div class="param-group">
+                        <label>Unit Type:</label>
+                        <select id="param-unit-type">${this.getUnitTypeOptions()}</select>
+                    </div>
+                    <div class="param-group">
+                        <label>Count:</label>
+                        <input type="number" id="param-count" min="1" value="1">
+                    </div>
+                `;
+
+            case 'build_building':
+                return `
+                    <div class="param-group">
+                        <label>City:</label>
+                        <select id="param-city">${this.getCityOptions()}</select>
+                    </div>
+                    <div class="param-group">
+                        <label>Building:</label>
+                        <select id="param-building-type">${this.getBuildingTypeOptions()}</select>
+                    </div>
+                `;
+
+            case 'goto':
+            case 'move_unit':
+                return `
+                    <div class="param-group">
+                        <label>Unit:</label>
+                        <select id="param-unit">${this.getUnitOptions()}</select>
+                    </div>
+                    <div class="param-group">
+                        <label>Target X:</label>
+                        <input type="number" id="param-x" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Target Y:</label>
+                        <input type="number" id="param-y" min="0" value="0">
+                    </div>
+                `;
+
+            case 'group_units':
+                return `
+                    <div class="param-group">
+                        <label>Location X:</label>
+                        <input type="number" id="param-x" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Location Y:</label>
+                        <input type="number" id="param-y" min="0" value="0">
+                    </div>
+                `;
+
+            case 'fortify':
+                return `
+                    <div class="param-group">
+                        <label>Unit:</label>
+                        <select id="param-unit">${this.getUnitOptions()}</select>
+                    </div>
+                `;
+
+            case 'wait_unit_arrives':
+                return `
+                    <div class="param-group">
+                        <label>Unit:</label>
+                        <select id="param-unit">${this.getUnitOptions()}</select>
+                    </div>
+                `;
+
+            case 'wait_units_at_location':
+                return `
+                    <div class="param-group">
+                        <label>Location X:</label>
+                        <input type="number" id="param-x" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Location Y:</label>
+                        <input type="number" id="param-y" min="0" value="0">
+                    </div>
+                    <div class="param-group">
+                        <label>Unit Count:</label>
+                        <input type="number" id="param-count" min="1" value="1">
+                    </div>
+                `;
+
+            case 'wait_turns':
+                return `
+                    <div class="param-group">
+                        <label>Turns to Wait:</label>
+                        <input type="number" id="param-turns" min="1" value="1">
+                    </div>
+                `;
+
+            default:
+                return '<p>Unknown step type</p>';
+        }
+    }
+
+    // Helper to get city options HTML
+    getCityOptions() {
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.cities || myPlayer.cities.length === 0) {
+            return '<option value="">No cities available</option>';
+        }
+        return myPlayer.cities.map(c =>
+            `<option value="${c.id}">${c.name} (${c.x}, ${c.y})</option>`
+        ).join('');
+    }
+
+    // Helper to get unit options HTML
+    getUnitOptions() {
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.units || myPlayer.units.length === 0) {
+            return '<option value="">No units available</option>';
+        }
+        return myPlayer.units.map(u =>
+            `<option value="${u.id}">${u.type} at (${u.x}, ${u.y})</option>`
+        ).join('');
+    }
+
+    // Helper to get unit type options HTML
+    getUnitTypeOptions() {
+        return Config.PRODUCTION_OPTIONS.units.map(u =>
+            `<option value="${u.type}">${u.name}</option>`
+        ).join('');
+    }
+
+    // Helper to get building type options HTML
+    getBuildingTypeOptions() {
+        return Config.PRODUCTION_OPTIONS.buildings.map(b =>
+            `<option value="${b.type}">${b.name}</option>`
+        ).join('');
+    }
+
+    // Add step from the parameter form
+    addStepFromForm(stepType) {
+        const params = {};
+        let description = getStepName(stepType);
+
+        switch (stepType) {
+            case 'build_unit': {
+                params.cityId = document.getElementById('param-city').value;
+                params.unitType = parseInt(document.getElementById('param-unit-type').value);
+                params.count = parseInt(document.getElementById('param-count').value) || 1;
+                const unitName = Config.PRODUCTION_OPTIONS.units.find(u => u.type === params.unitType)?.name || 'Unit';
+                const cityName = this.getCityName(params.cityId);
+                description = `Build ${params.count} ${unitName}(s) in ${cityName}`;
+                break;
+            }
+            case 'build_building': {
+                params.cityId = document.getElementById('param-city').value;
+                params.buildingType = parseInt(document.getElementById('param-building-type').value);
+                const buildingName = Config.PRODUCTION_OPTIONS.buildings.find(b => b.type === params.buildingType)?.name || 'Building';
+                const cityName = this.getCityName(params.cityId);
+                description = `Build ${buildingName} in ${cityName}`;
+                break;
+            }
+            case 'goto':
+            case 'move_unit': {
+                params.unitId = document.getElementById('param-unit').value;
+                params.targetX = parseInt(document.getElementById('param-x').value) || 0;
+                params.targetY = parseInt(document.getElementById('param-y').value) || 0;
+                description = `${stepType === 'goto' ? 'Send' : 'Move'} unit to (${params.targetX}, ${params.targetY})`;
+                break;
+            }
+            case 'group_units': {
+                params.locationX = parseInt(document.getElementById('param-x').value) || 0;
+                params.locationY = parseInt(document.getElementById('param-y').value) || 0;
+                description = `Group units at (${params.locationX}, ${params.locationY})`;
+                break;
+            }
+            case 'fortify': {
+                params.unitId = document.getElementById('param-unit').value;
+                description = `Fortify unit`;
+                break;
+            }
+            case 'wait_unit_arrives': {
+                params.unitId = document.getElementById('param-unit').value;
+                description = `Wait for unit to arrive`;
+                break;
+            }
+            case 'wait_units_at_location': {
+                params.locationX = parseInt(document.getElementById('param-x').value) || 0;
+                params.locationY = parseInt(document.getElementById('param-y').value) || 0;
+                params.count = parseInt(document.getElementById('param-count').value) || 1;
+                description = `Wait for ${params.count} units at (${params.locationX}, ${params.locationY})`;
+                break;
+            }
+            case 'wait_turns': {
+                params.turns = parseInt(document.getElementById('param-turns').value) || 1;
+                description = `Wait ${params.turns} turn(s)`;
+                break;
+            }
+        }
+
+        // Add step to current order
+        this.currentEditingOrder.steps.push({
+            type: stepType,
+            params: params,
+            description: description
+        });
+
+        // Reset form
+        document.getElementById('step-type-select').value = '';
+        document.getElementById('step-params-form').classList.add('hidden');
+        document.getElementById('step-params-form').innerHTML = '';
+
+        // Re-render steps
+        this.renderOrderSteps();
+    }
+
+    // Helper to get city name by ID
+    getCityName(cityId) {
+        const myPlayer = gameState.getMyPlayer();
+        if (!myPlayer || !myPlayer.cities) return 'Unknown';
+        const city = myPlayer.cities.find(c => c.id === cityId);
+        return city ? city.name : 'Unknown';
+    }
+
+    // Save the current order (handles both create and update)
+    saveCurrentOrder() {
+        const nameInput = document.getElementById('order-name');
+        const descInput = document.getElementById('order-description');
+
+        const name = nameInput.value.trim() || 'Unnamed Order';
+        const description = descInput.value.trim();
+
+        if (this.currentEditingOrder.steps.length === 0) {
+            alert('Please add at least one step to the order.');
+            return;
+        }
+
+        let order;
+        const isEditing = !!this.currentEditingOrder.id;
+
+        if (isEditing) {
+            // Update existing order
+            order = ordersManager.getOrder(this.currentEditingOrder.id);
+            if (!order) {
+                alert('Order not found. It may have been deleted.');
+                return;
+            }
+
+            // Update order properties
+            order.name = name;
+            order.description = description;
+
+            // Clear existing steps and add new ones
+            order.steps = [];
+            order.currentStepIndex = 0;
+            for (const step of this.currentEditingOrder.steps) {
+                order.addStep(step.type, step.params, step.description);
+            }
+
+            // Reset status if the order was completed or failed
+            if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.FAILED) {
+                order.status = OrderStatus.ACTIVE;
+                order.errorMessage = null;
+            }
+
+            console.log(`Order "${name}" updated with ${order.steps.length} steps`);
+        } else {
+            // Create new order
+            order = ordersManager.createOrder(name, description);
+
+            // Add steps
+            for (const step of this.currentEditingOrder.steps) {
+                order.addStep(step.type, step.params, step.description);
+            }
+
+            console.log(`Order "${name}" created with ${order.steps.length} steps`);
+        }
+
+        // Save to localStorage
+        ordersManager.saveToLocalStorage();
+
+        // Close modal
+        document.getElementById('new-order-modal').classList.add('hidden');
+        this.currentEditingOrder = null;
+    }
+
+    // Show orders dashboard
+    showOrdersDashboard() {
+        const modal = document.getElementById('orders-dashboard-modal');
+        const list = document.getElementById('orders-dashboard-list');
+
+        const orders = ordersManager.getAllOrders();
+
+        if (orders.length === 0) {
+            list.innerHTML = '<p class="no-selection">No orders created yet</p>';
+            modal.classList.remove('hidden');
+            return;
+        }
+
+        let html = '<table class="orders-table"><thead><tr>';
+        html += '<th>Order</th><th>Status</th><th>Progress</th><th>Actions</th>';
+        html += '</tr></thead><tbody>';
+
+        for (const order of orders) {
+            const progress = order.getProgress();
+            const statusClass = `status-${order.status}`;
+
+            html += `<tr data-order-id="${order.id}">`;
+            html += `<td><strong>${order.name}</strong>`;
+            if (order.description) {
+                html += `<br><small>${order.description}</small>`;
+            }
+            html += `</td>`;
+            html += `<td><span class="${statusClass}">${order.status}</span>`;
+            if (order.errorMessage) {
+                html += `<br><small class="error-text">${order.errorMessage}</small>`;
+            }
+            html += `</td>`;
+            html += `<td>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:${progress}%"></div>
+                </div>
+                <small>${order.currentStepIndex}/${order.steps.length} steps</small>
+            </td>`;
+            html += `<td class="order-actions">
+                <button class="btn-order-view btn-small" data-order-id="${order.id}">Details</button>
+                <button class="btn-order-edit btn-small" data-order-id="${order.id}">Edit</button>
+                <button class="btn-order-toggle btn-small" data-order-id="${order.id}">${order.status === 'active' ? 'Pause' : 'Resume'}</button>
+                <button class="btn-order-delete btn-small" data-order-id="${order.id}">Delete</button>
+            </td>`;
+            html += `</tr>`;
+        }
+
+        html += '</tbody></table>';
+        list.innerHTML = html;
+
+        // Add event listeners
+        list.querySelectorAll('.btn-order-view').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.target.dataset.orderId;
+                this.showOrderDetail(orderId);
+            });
+        });
+
+        list.querySelectorAll('.btn-order-edit').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.target.dataset.orderId;
+                this.showEditOrderModal(orderId);
+            });
+        });
+
+        list.querySelectorAll('.btn-order-toggle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.target.dataset.orderId;
+                this.toggleOrderPause(orderId);
+            });
+        });
+
+        list.querySelectorAll('.btn-order-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.target.dataset.orderId;
+                if (confirm('Delete this order?')) {
+                    ordersManager.deleteOrder(orderId);
+                    ordersManager.saveToLocalStorage();
+                    this.showOrdersDashboard(); // Refresh
+                }
+            });
+        });
+
+        modal.classList.remove('hidden');
+    }
+
+    // Toggle order pause/resume
+    toggleOrderPause(orderId) {
+        const order = ordersManager.getOrder(orderId);
+        if (!order) return;
+
+        if (order.status === OrderStatus.ACTIVE) {
+            order.pause();
+        } else if (order.status === OrderStatus.PAUSED) {
+            order.resume();
+        }
+
+        ordersManager.saveToLocalStorage();
+        this.showOrdersDashboard(); // Refresh
+    }
+
+    // Show order detail view
+    showOrderDetail(orderId) {
+        const modal = document.getElementById('order-detail-modal');
+        const title = document.getElementById('order-detail-title');
+        const content = document.getElementById('order-detail-content');
+
+        const order = ordersManager.getOrder(orderId);
+        if (!order) {
+            content.innerHTML = '<p class="no-selection">Order not found</p>';
+            modal.classList.remove('hidden');
+            return;
+        }
+
+        title.textContent = order.name;
+
+        let html = `<div class="order-info">
+            <p><strong>Status:</strong> <span class="status-${order.status}">${order.status}</span></p>
+            <p><strong>Progress:</strong> ${order.getProgress()}% (${order.currentStepIndex}/${order.steps.length} steps)</p>
+            ${order.description ? `<p><strong>Description:</strong> ${order.description}</p>` : ''}
+            ${order.errorMessage ? `<p class="error-text"><strong>Error:</strong> ${order.errorMessage}</p>` : ''}
+        </div>`;
+
+        if (order.status === OrderStatus.PAUSED && order.getCurrentStep()?.status === StepStatus.FAILED) {
+            html += `<div class="order-recovery-actions">
+                <button class="btn-skip-step btn-small" data-order-id="${order.id}">Skip Failed Step</button>
+                <button class="btn-retry-step btn-small" data-order-id="${order.id}">Retry Step</button>
+            </div>`;
+        }
+
+        html += '<h4>Steps:</h4><div class="order-steps-detail">';
+
+        order.steps.forEach((step, index) => {
+            const isCurrent = index === order.currentStepIndex;
+            const stepClass = `step-${step.status} ${isCurrent ? 'step-current' : ''}`;
+
+            html += `
+                <div class="order-step ${stepClass}">
+                    <span class="step-number">${index + 1}</span>
+                    <span class="step-icon">${getStepIcon(step.type)}</span>
+                    <span class="step-desc">${step.description}</span>
+                    <span class="step-status-badge">${step.status}</span>
+                    ${step.progress > 0 && step.status === StepStatus.IN_PROGRESS ?
+                        `<div class="mini-progress-bar"><div class="mini-progress-fill" style="width:${step.progress}%"></div></div>` : ''}
+                    ${step.errorMessage ? `<div class="step-error">${step.errorMessage}</div>` : ''}
+                    ${step.result ? `<div class="step-result">${step.result}</div>` : ''}
+                </div>
+            `;
+        });
+
+        html += '</div>';
+
+        content.innerHTML = html;
+
+        // Add event listeners for recovery actions
+        const skipBtn = content.querySelector('.btn-skip-step');
+        if (skipBtn) {
+            skipBtn.addEventListener('click', () => {
+                ordersManager.skipCurrentStep(orderId);
+                ordersManager.saveToLocalStorage();
+                this.showOrderDetail(orderId); // Refresh
+            });
+        }
+
+        const retryBtn = content.querySelector('.btn-retry-step');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                ordersManager.retryCurrentStep(orderId);
+                ordersManager.saveToLocalStorage();
+                this.showOrderDetail(orderId); // Refresh
+            });
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    // Show notification when orders are paused
+    showOrdersPausedNotification(pausedOrders) {
+        if (pausedOrders.length === 0) return;
+
+        const names = pausedOrders.map(o => o.name).join(', ');
+        console.log(`Orders paused: ${names}`);
+        // Could show a toast notification here
+        alert(`Order(s) paused due to errors: ${names}\n\nCheck Orders Dashboard for details.`);
+    }
+
+    // Refresh orders dashboard if open
+    refreshOrdersDashboard() {
+        const modal = document.getElementById('orders-dashboard-modal');
+        if (!modal.classList.contains('hidden')) {
+            this.showOrdersDashboard();
         }
     }
 
@@ -848,6 +1551,7 @@ class UI {
         const moveBtn = document.getElementById('btn-move');
         const attackBtn = document.getElementById('btn-attack');
         const fortifyBtn = document.getElementById('btn-fortify');
+        const unfortifyBtn = document.getElementById('btn-unfortify');
         const gotoBtn = document.getElementById('btn-goto');
         const foundCityBtn = document.getElementById('btn-found-city');
         const buildRoadBtn = document.getElementById('btn-build-road');
@@ -866,9 +1570,19 @@ class UI {
 
         moveBtn.disabled = !canAct;
         attackBtn.disabled = !canAct;
-        fortifyBtn.disabled = !canAct || unit.can_found_city; // Settlers can't fortify
         gotoBtn.disabled = !unit; // Goto can always be set if unit is selected
         skipBtn.disabled = !hasMovement;
+
+        // Show Fortify or Wake button based on unit state
+        if (unit && unit.is_fortified) {
+            fortifyBtn.classList.add('hidden');
+            unfortifyBtn.classList.remove('hidden');
+            unfortifyBtn.disabled = false;
+        } else {
+            fortifyBtn.classList.remove('hidden');
+            fortifyBtn.disabled = !canAct || (unit && unit.can_found_city); // Settlers can't fortify
+            unfortifyBtn.classList.add('hidden');
+        }
 
         if (unit && unit.can_found_city) {
             foundCityBtn.disabled = !canAct || !gameState.canFoundCity();
@@ -991,6 +1705,48 @@ class UI {
             li.textContent = 'None';
             li.style.color = '#666';
             this.cityBuildingList.appendChild(li);
+        }
+
+        // Garrison - show units in this city
+        this.garrisonUnits.innerHTML = '';
+        const myPlayer = gameState.getMyPlayer();
+        const garrisonedUnits = myPlayer ? myPlayer.units.filter(u => u.x === city.x && u.y === city.y) : [];
+
+        if (garrisonedUnits.length > 0) {
+            garrisonedUnits.forEach(unit => {
+                const unitDiv = document.createElement('div');
+                unitDiv.className = 'garrison-unit';
+
+                const statusText = unit.is_fortified ? ' (Fortified)' : '';
+                const healthText = unit.health < 100 ? ` - ${unit.health}%` : '';
+
+                unitDiv.innerHTML = `
+                    <span class="garrison-unit-info">${unit.type}${statusText}${healthText}</span>
+                    <button class="btn-activate-unit btn-small" data-unit-id="${unit.id}">Activate</button>
+                `;
+
+                this.garrisonUnits.appendChild(unitDiv);
+            });
+
+            // Add event listeners for activate buttons
+            this.garrisonUnits.querySelectorAll('.btn-activate-unit').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const unitId = e.target.dataset.unitId;
+                    const unit = garrisonedUnits.find(u => u.id === unitId);
+                    if (unit) {
+                        // Unfortify if fortified
+                        if (unit.is_fortified) {
+                            gameSocket.unfortifyUnit(unit.id);
+                        }
+                        // Select the unit and close modal
+                        gameState.selectUnit(unit);
+                        this.updateSelectionPanel();
+                        this.hideCityModal();
+                    }
+                });
+            });
+        } else {
+            this.garrisonUnits.innerHTML = '<p class="no-garrison">No units garrisoned</p>';
         }
 
         // Production options (only if it's my city)

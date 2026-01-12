@@ -430,6 +430,15 @@ func (c *Client) handleAction(payload json.RawMessage) {
 			UnitID: data.UnitID,
 		}
 
+	case "unfortify":
+		var data struct {
+			UnitID string `json:"unit_id"`
+		}
+		json.Unmarshal(actionMsg.Data, &data)
+		action = &game.UnfortifyAction{
+			UnitID: data.UnitID,
+		}
+
 	case "skip":
 		var data struct {
 			UnitID string `json:"unit_id"`

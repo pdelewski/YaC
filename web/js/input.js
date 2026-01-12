@@ -118,7 +118,17 @@ class InputHandler {
     }
 
     handleNormalClick(x, y) {
-        // Check for my units at this location
+        // Check for my city at this location FIRST
+        // Units garrisoned in cities are managed through the city modal
+        const city = gameState.getCityAt(x, y);
+        if (city && city.owner_id === gameState.myPlayerId) {
+            gameState.selectCity(city);
+            ui.updateSelectionPanel();
+            ui.showCityModal(city);
+            return;
+        }
+
+        // Check for my units at this location (only if no city)
         const myUnits = gameState.getMyUnitsAt(x, y);
         if (myUnits.length > 0) {
             // Check if there's a group at this location
@@ -133,15 +143,6 @@ class InputHandler {
             // Otherwise select first ungrouped unit
             gameState.selectUnit(myUnits[0]);
             ui.updateSelectionPanel();
-            return;
-        }
-
-        // Check for my city at this location
-        const city = gameState.getCityAt(x, y);
-        if (city && city.owner_id === gameState.myPlayerId) {
-            gameState.selectCity(city);
-            ui.updateSelectionPanel();
-            ui.showCityModal(city);
             return;
         }
 
@@ -377,8 +378,16 @@ class InputHandler {
 
             case 'f':
             case 'F':
-                if (gameState.selectedUnit && !gameState.selectedUnit.can_found_city) {
+                if (gameState.selectedUnit && !gameState.selectedUnit.can_found_city && !gameState.selectedUnit.is_fortified) {
                     gameSocket.fortifyUnit(gameState.selectedUnit.id);
+                }
+                break;
+
+            case 'w':
+            case 'W':
+                // Wake/Unfortify
+                if (gameState.selectedUnit && gameState.selectedUnit.is_fortified) {
+                    gameSocket.unfortifyUnit(gameState.selectedUnit.id);
                 }
                 break;
 

@@ -2776,6 +2776,20 @@ class Renderer {
         }
     }
 
+    // Check if a unit is garrisoned in a city (should not be rendered on map)
+    // Exception: the selected unit is always visible so player can move it
+    isUnitGarrisoned(unit) {
+        // Selected unit is always visible, even in a city
+        if (gameState.selectedUnit && unit.id === gameState.selectedUnit.id) {
+            return false;
+        }
+
+        // Units in cities are considered garrisoned and hidden from the map
+        // They are managed through the city modal instead
+        const city = gameState.getCityAt(unit.x, unit.y);
+        return city !== null;
+    }
+
     // Render units
     renderUnits() {
         const scaledTileSize = this.tileSize * this.camera.zoom;
@@ -2795,6 +2809,11 @@ class Renderer {
                 continue;
             }
             for (const unit of player.units) {
+                // Skip units garrisoned in cities - they're shown in city modal instead
+                if (this.isUnitGarrisoned(unit)) {
+                    continue;
+                }
+
                 // If unit is in a group, handle group rendering
                 if (unit.group_id) {
                     // Skip if we've already drawn this group

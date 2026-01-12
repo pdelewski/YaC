@@ -165,6 +165,12 @@ class GameWebSocket {
         });
     }
 
+    unfortifyUnit(unitId) {
+        return this.sendAction('unfortify', {
+            unit_id: unitId
+        });
+    }
+
     skipUnit(unitId) {
         return this.sendAction('skip', {
             unit_id: unitId
